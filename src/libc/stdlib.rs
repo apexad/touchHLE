@@ -12,8 +12,8 @@ use crate::libc::clocale::{setlocale, LC_CTYPE};
 use crate::libc::errno::{set_errno, EINVAL};
 use crate::libc::string::strlen;
 use crate::libc::wchar::wchar_t;
-use crate::mem::{ConstPtr, ConstVoidPtr, GuestUSize, MutPtr, MutVoidPtr, Ptr};
-use crate::Environment;
+use crate::mem::{ConstPtr, ConstVoidPtr, GuestUSize, MutPtr, MutVoidPtr, Ptr, SafeRead};
+use crate::{impl_GuestRet_for_large_struct, Environment};
 use std::str::FromStr;
 
 pub mod qsort;
@@ -212,6 +212,23 @@ fn random(env: &mut Environment) -> i32 {
 fn arc4random(env: &mut Environment) -> u32 {
     env.libc_state.stdlib.arc4random = prng(env.libc_state.stdlib.arc4random);
     env.libc_state.stdlib.arc4random
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[repr(C, packed)]
+struct div_t {
+    quot: i32,
+    rem: i32,
+}
+unsafe impl SafeRead for div_t {}
+impl_GuestRet_for_large_struct!(div_t);
+
+fn div(_env: &mut Environment, numer: i32, denom: i32) -> div_t {
+    div_t {
+        quot: numer.wrapping_div(denom),
+        rem: numer.wrapping_rem(denom),
+    }
 }
 
 fn getenv(env: &mut Environment, name: ConstPtr<u8>) -> MutPtr<u8> {
@@ -522,6 +539,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(srandom(_)),
     export_c_func!(random()),
     export_c_func!(arc4random()),
+    export_c_func!(div(_, _)),
     export_c_func!(getenv(_)),
     export_c_func!(setenv(_, _, _)),
     export_c_func!(unsetenv(_)),
