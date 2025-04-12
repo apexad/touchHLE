@@ -891,6 +891,43 @@ int test_sscanf() {
   matched = sscanf("-12345", "%3hhd", &sc);
   if (!(matched == 1 && sc == -12))
     return -91;
+  // max_width for %s specifier
+  // width truncates a longer token
+  matched = sscanf("abcdef", "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -92;
+  // width larger than the token reads the whole token
+  matched = sscanf("ab", "%5s", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -93;
+  // width of 1
+  matched = sscanf("abc", "%1s", str);
+  if (!(matched == 1 && strcmp(str, "a") == 0))
+    return -94;
+  // input length exactly equals width
+  matched = sscanf("abc", "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -95;
+  // %s stopped by whitespace before width is reached
+  matched = sscanf("ab cd", "%5s", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -96;
+  // leading whitespace is skipped and does not count towards width
+  matched = sscanf("   abcdef", "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -97;
+  // width limits %s leaving remainder for next conversion
+  matched = sscanf("abcdef", "%3s%s", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -98;
+  // two width-limited %s split a single token
+  matched = sscanf("abcdefgh", "%3s%3s", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -99;
+  // width-truncated %s leaves the remainder for a following %d
+  matched = sscanf("abc123", "%3s%d", str, &a);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && a == 123))
+    return -100;
   return 0;
 }
 
@@ -2934,6 +2971,61 @@ int test_fscanf_new() {
   matched = fscanf(file, "%3hhd", &sc);
   if (!(matched == 1 && sc == -12))
     return -80;
+  SKIP_LINE(file);
+
+  // max_width for %s specifier
+  // width truncates a longer token
+  matched = fscanf(file, "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -81;
+  SKIP_LINE(file);
+
+  // width larger than the token reads the whole token
+  matched = fscanf(file, "%5s", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -82;
+  SKIP_LINE(file);
+
+  // width of 1
+  matched = fscanf(file, "%1s", str);
+  if (!(matched == 1 && strcmp(str, "a") == 0))
+    return -83;
+  SKIP_LINE(file);
+
+  // input length exactly equals width
+  matched = fscanf(file, "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -84;
+  SKIP_LINE(file);
+
+  // %s stopped by whitespace before width is reached
+  matched = fscanf(file, "%5s", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -85;
+  SKIP_LINE(file);
+
+  // leading whitespace is skipped and does not count towards width
+  matched = fscanf(file, "%3s", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -86;
+  SKIP_LINE(file);
+
+  // width limits %s leaving remainder for next conversion
+  matched = fscanf(file, "%3s%s", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -87;
+  SKIP_LINE(file);
+
+  // two width-limited %s split a single token
+  matched = fscanf(file, "%3s%3s", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -88;
+  SKIP_LINE(file);
+
+  // width-truncated %s leaves the remainder for a following %d
+  matched = fscanf(file, "%3s%d", str, &a);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && a == 123))
+    return -89;
   SKIP_LINE(file);
 
   fclose(file);
