@@ -181,6 +181,9 @@ fn __strcat_chk(
 ) -> MutPtr<u8> {
     GenericChar::<u8>::strcat(env, dest, src, size)
 }
+fn strspn(env: &mut Environment, s: ConstPtr<u8>, charset: ConstPtr<u8>) -> GuestUSize {
+    GenericChar::<u8>::strspn(env, s, charset)
+}
 fn strcspn(env: &mut Environment, s: ConstPtr<u8>, charset: ConstPtr<u8>) -> GuestUSize {
     GenericChar::<u8>::strcspn(env, s, charset)
 }
@@ -298,6 +301,9 @@ fn strchr(env: &mut Environment, path: ConstPtr<u8>, c: u8) -> ConstPtr<u8> {
 fn strrchr(env: &mut Environment, path: ConstPtr<u8>, c: u8) -> ConstPtr<u8> {
     GenericChar::<u8>::strrchr(env, path, c)
 }
+fn strpbrk(env: &mut Environment, s: ConstPtr<u8>, charset: ConstPtr<u8>) -> ConstPtr<u8> {
+    GenericChar::<u8>::strpbrk(env, s, charset)
+}
 fn strlcpy(
     env: &mut Environment,
     dst: MutPtr<u8>,
@@ -326,6 +332,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(strcpy(_, _)),
     export_c_func!(__strcpy_chk(_, _, _)),
     export_c_func!(strcat(_, _)),
+    export_c_func!(strspn(_, _)),
     export_c_func!(strcspn(_, _)),
     export_c_func!(__strcat_chk(_, _, _)),
     export_c_func!(strncpy(_, _, _)),
@@ -340,5 +347,6 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(strstr(_, _)),
     export_c_func!(strchr(_, _)),
     export_c_func!(strrchr(_, _)),
+    export_c_func!(strpbrk(_, _)),
     export_c_func!(strlcpy(_, _, _)),
 ];
