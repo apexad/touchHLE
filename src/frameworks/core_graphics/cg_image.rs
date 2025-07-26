@@ -6,7 +6,8 @@
 //! `CGImage.h`
 
 use super::cg_color_space::{
-    kCGColorSpaceGenericRGB, CGColorSpaceCreateWithName, CGColorSpaceGetModel, CGColorSpaceRef,
+    kCGColorSpaceGenericRGB, kCGColorSpaceModelRGB, CGColorSpaceCreateWithName,
+    CGColorSpaceGetModel, CGColorSpaceRef,
 };
 use super::cg_data_provider::{self, CGDataProviderRef};
 use super::CGFloat;
@@ -33,7 +34,6 @@ pub const kCGImageByteOrderMask: CGImageByteOrderInfo = 0x7000;
 pub const kCGImageByteOrderDefault: CGImageByteOrderInfo = 0 << 12;
 #[allow(dead_code)]
 pub const kCGImageByteOrder16Little: CGImageByteOrderInfo = 1 << 12;
-#[allow(dead_code)]
 pub const kCGImageByteOrder32Little: CGImageByteOrderInfo = 2 << 12;
 #[allow(dead_code)]
 pub const kCGImageByteOrder16Big: CGImageByteOrderInfo = 3 << 12;
@@ -96,6 +96,62 @@ pub fn borrow_image_mut(objc: &mut ObjC, image: CGImageRef) -> &mut Image {
 }
 
 // TODO: More create methods.
+
+fn CGImageCreate(
+    env: &mut Environment,
+    width: GuestUSize,
+    height: GuestUSize,
+    bits_per_component: GuestUSize,
+    bits_per_pixel: GuestUSize,
+    bytes_per_row: GuestUSize,
+    colorspace: CGColorSpaceRef,
+    bitmap_info: CGBitmapInfo,
+    provider: CGDataProviderRef,
+    decode: ConstPtr<CGFloat>,
+    _should_interpolate: bool, // TODO
+    _intent: i32,              // TODO (should be CGColorRenderingIntent)
+) -> CGImageRef {
+    log_dbg!(
+        "CGImageCreate w {}, h {}, bpc {}, bpp {}, bpr {}, bi {}",
+        width,
+        height,
+        bits_per_component,
+        bits_per_pixel,
+        bytes_per_row,
+        bitmap_info
+    );
+    assert!(decode.is_null()); // TODO
+    assert_eq!(CGColorSpaceGetModel(env, colorspace), kCGColorSpaceModelRGB);
+    assert_eq!(bits_per_component, 8);
+    assert_eq!(bits_per_pixel, 32);
+    assert_eq!(width as u64 * 4, bytes_per_row as u64);
+
+    let mut pixels = cg_data_provider::borrow_bytes(env, provider).to_vec();
+    assert_eq!(pixels.len() as u64, width as u64 * height as u64 * 4);
+
+    let byte_order = bitmap_info & kCGBitmapByteOrderMask;
+    let alpha_info = bitmap_info & kCGBitmapAlphaInfoMask;
+    assert_eq!(alpha_info | byte_order, bitmap_info); // TODO
+    match byte_order {
+        kCGImageByteOrderDefault | kCGImageByteOrder32Big => {
+            assert_eq!(alpha_info, kCGImageAlphaPremultipliedLast); // TODO
+        }
+        kCGImageByteOrder32Little => {
+            // TODO: fix CGImageGetAlphaInfo()
+            assert_eq!(alpha_info, kCGImageAlphaNoneSkipFirst); // TODO
+            for chunk in pixels.chunks_exact_mut(4) {
+                // XRGB in 32 little endian -> RGBX in 32 big endian
+                chunk.swap(0, 2);
+                // Assume opaque, even though it is undefined
+                chunk[3] = 0xFF;
+            }
+        }
+        _ => unimplemented!("{byte_order}"),
+    }
+
+    let image = Image::from_pixel_vec(pixels, (width, height));
+    from_image(env, image)
+}
 
 fn CGImageCreateCopyWithColorSpace(
     env: &mut Environment,
@@ -210,6 +266,7 @@ fn CGImageGetBitsPerComponent(_: &mut Environment, _: CGImageRef) -> GuestUSize 
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGImageRelease(_)),
     export_c_func!(CGImageRetain(_)),
+    export_c_func!(CGImageCreate(_, _, _, _, _, _, _, _, _, _, _)),
     export_c_func!(CGImageCreateCopyWithColorSpace(_, _)),
     export_c_func!(CGImageCreateWithPNGDataProvider(_, _, _, _)),
     export_c_func!(CGImageCreateWithJPEGDataProvider(_, _, _, _)),
