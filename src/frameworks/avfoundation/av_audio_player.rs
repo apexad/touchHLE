@@ -25,8 +25,8 @@ use crate::frameworks::foundation::ns_error::NSOSStatusErrorDomain;
 use crate::frameworks::foundation::{ns_string, NSInteger, NSTimeInterval};
 use crate::mem::{guest_size_of, GuestUSize, MutPtr, MutVoidPtr, Ptr};
 use crate::objc::{
-    id, msg, msg_class, nil, release, retain, todo_objc_setter, Class, ClassExports, HostObject,
-    NSZonePtr,
+    autorelease, id, msg, msg_class, nil, release, retain, todo_objc_setter, Class, ClassExports,
+    HostObject, NSZonePtr,
 };
 use crate::objc_classes;
 use crate::Environment;
@@ -82,10 +82,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 }
 
 - (id)initWithContentsOfURL:(id)url // NSURL*
-                      error:(MutPtr<id>)outError { // NSError**
+                      error:(MutPtr<id>)out_error { // NSError**
     let path: id = msg![env; url path];
     let path_str = ns_string::to_rust_string(env, path);
-    log_dbg!("[(AVAudioPlayer*){:?} initWithContentsOfURL:{:?} {} outError:{:?}]", this, url, path_str, outError);
+    log_dbg!("[(AVAudioPlayer*){:?} initWithContentsOfURL:{:?} {} outError:{:?}]", this, url, path_str, out_error);
 
     retain(env, url);
     env.objc.borrow_mut::<AVAudioPlayerHostObject>(this).audio_file_url = url;
@@ -97,11 +97,12 @@ pub const CLASSES: ClassExports = objc_classes! {
     env.objc.borrow_mut::<AVAudioPlayerHostObject>(this).audio_file_id = Some(audio_file_id);
     env.mem.free(tmp_afi_ptr.cast());
     if status != 0 {
-        if !outError.is_null() {
+        if !out_error.is_null() {
             let domain = ns_string::get_static_str(env, NSOSStatusErrorDomain);
             let error = msg_class![env; NSError alloc];
             let error = msg![env; error initWithDomain:domain code:status userInfo:nil];
-            env.mem.write(outError, error);
+            autorelease(env, error);
+            env.mem.write(out_error, error);
         }
         return nil;
     }

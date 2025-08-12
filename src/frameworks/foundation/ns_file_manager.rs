@@ -197,6 +197,7 @@ pub const CLASSES: ClassExports = objc_classes! {
                         let domain = get_static_str(env, NSCocoaErrorDomain);
                         let error = msg_class![env; NSError alloc];
                         let error = msg![env; error initWithDomain:domain code:NSFileReadNoSuchFileError userInfo:nil];
+                        autorelease(env, error);
                         env.mem.write(out_error, error);
                     }
                     _ => unimplemented!()
