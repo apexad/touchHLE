@@ -44,11 +44,11 @@ pub use selectors::{selector, SEL};
 
 use crate::mem::ConstVoidPtr;
 use crate::Environment;
-use classes::{ClassHostObject, FakeClass, UnimplementedClass};
+use classes::{class_getSuperclass, objc_getClass, ClassHostObject, FakeClass, UnimplementedClass};
 pub(crate) use messages::objc_msgSend;
 use messages::{objc_msgSendSuper2, objc_msgSend_stret, MsgSendSignature, MsgSendSuperSignature};
 use methods::method_list_t;
-use objects::{objc_object, HostObjectEntry};
+use objects::{objc_object, object_getClass, HostObjectEntry};
 use properties::{ivar_list_t, objc_copyStruct, objc_getProperty, objc_setProperty};
 use selectors::sel_registerName;
 use synchronization::{objc_sync_enter, objc_sync_exit};
@@ -127,14 +127,17 @@ fn _Block_object_dispose(_env: &mut Environment, object: ConstVoidPtr, flags: i3
 }
 
 const FUNCTIONS: FunctionExports = &[
+    export_c_func!(class_getSuperclass(_)),
     export_c_func!(objc_msgSend(_, _)),
     export_c_func!(objc_msgSend_stret(_, _, _)),
     export_c_func!(objc_msgSendSuper2(_, _)),
+    export_c_func!(objc_getClass(_)),
     export_c_func!(objc_getProperty(_, _, _, _)),
     export_c_func!(objc_setProperty(_, _, _, _, _, _)),
     export_c_func!(objc_copyStruct(_, _, _, _, _)),
     export_c_func!(objc_sync_enter(_)),
     export_c_func!(objc_sync_exit(_)),
+    export_c_func!(object_getClass(_)),
     export_c_func!(sel_registerName(_)),
     export_c_func!(_Block_object_dispose(_, _)),
 ];

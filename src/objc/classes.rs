@@ -16,6 +16,7 @@ use super::{
 };
 use crate::mach_o::MachO;
 use crate::mem::{guest_size_of, ConstPtr, ConstVoidPtr, GuestUSize, Mem, Ptr, SafeRead};
+use crate::Environment;
 use std::collections::{HashMap, VecDeque};
 
 /// Generic pointer to an Objective-C class or metaclass.
@@ -952,5 +953,20 @@ impl ObjC {
         } else {
             None
         }
+    }
+}
+
+pub(super) fn objc_getClass(env: &mut Environment, name: ConstPtr<u8>) -> id {
+    let name_str = env.mem.cstr_at_utf8(name).unwrap();
+    env.objc
+        .get_class(name_str, false, &env.mem)
+        .unwrap_or_else(|| panic!("objc_getClass() for unimplemented class {name_str}"))
+}
+
+pub(super) fn class_getSuperclass(env: &mut Environment, cls: Class) -> Class {
+    if cls == nil {
+        nil
+    } else {
+        env.objc.borrow::<ClassHostObject>(cls).superclass
     }
 }
