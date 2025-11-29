@@ -27,6 +27,7 @@ pub const EISDIR: i32 = 21;
 pub const EINVAL: i32 = 22;
 pub const ESPIPE: i32 = 29;
 pub const EROFS: i32 = 30;
+pub const EAGAIN: i32 = 35;
 pub const EPROTONOSUPPORT: i32 = 43;
 pub const ENOTSUP: i32 = 45;
 pub const ECONNRESET: i32 = 54;
@@ -111,6 +112,7 @@ fn strerror(env: &mut Environment, err_num: i32) -> ConstPtr<u8> {
             EINVAL => "Invalid argument",
             ESPIPE => "Illegal seek",
             EROFS => "Read-only file system",
+            EAGAIN => "Resource temporarily unavailable",
             EPROTONOSUPPORT => "Protocol not supported",
             ENOTSUP => "Operation not supported",
             ECONNRESET => "Connection reset by peer",
