@@ -55,4 +55,6 @@ pub struct State {
 
 /// Container for thread local state of various child modules
 #[derive(Default)]
-pub struct ThreadLocalState {}
+pub struct ThreadLocalState {
+    foundation: foundation::ThreadLocalState,
+}
