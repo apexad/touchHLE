@@ -529,6 +529,41 @@ int test_vsnprintf() {
     return -52;
   }
   free(str);
+  // Test %ls (wide string, C locale)
+  str = str_format("%ls", L"hello");
+  if (strcmp(str, "hello") != 0) {
+    free(str);
+    return -53;
+  }
+  free(str);
+  // Test %ls with ASCII-only wide string
+  str = str_format("%ls", L"foo bar");
+  if (strcmp(str, "foo bar") != 0) {
+    free(str);
+    return -54;
+  }
+  free(str);
+  // Test %ls with empty wide string
+  str = str_format("%ls", L"");
+  if (strcmp(str, "") != 0) {
+    free(str);
+    return -55;
+  }
+  free(str);
+  // Test %ls NULL
+  str = str_format("%ls", (wchar_t *)NULL);
+  if (strcmp(str, "(null)") != 0) {
+    free(str);
+    return -56;
+  }
+  free(str);
+  // Test %ls embedded in a larger format string
+  str = str_format("pre-%ls-post", L"mid");
+  if (strcmp(str, "pre-mid-post") != 0) {
+    free(str);
+    return -57;
+  }
+  free(str);
 
   return 0;
 }

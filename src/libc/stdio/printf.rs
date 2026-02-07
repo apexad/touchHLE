@@ -207,50 +207,50 @@ pub fn printf_inner<const NS_LOG: bool, F: Fn(&Mem, GuestUSize) -> u8>(
                 let c = char::from_u32(c.into()).unwrap();
                 write!(&mut res, "{c}").unwrap();
             }
-            b's' => {
+            b's' | b'S' => {
                 assert!(!prepend_sign);
-                // TODO: support length modifier
-                assert!(length_modifier.is_none());
-                let c_string: ConstPtr<u8> = args.next(env);
-                assert!(pad_char == ' '); // TODO
-                if !c_string.is_null() {
-                    if let Some(precision) = precision {
-                        assert!(!left_justified);
-                        let str_len = strlen(env, c_string);
-                        res.extend_from_slice(
-                            env.mem.bytes_at(c_string, str_len.min(precision as _)),
-                        )
-                    } else if pad_width > 0 {
-                        let pad_width = pad_width as usize;
-                        let str = env.mem.cstr_at_utf8(c_string).unwrap();
-                        if left_justified {
-                            write!(&mut res, "{str:<pad_width$}").unwrap();
-                        } else {
-                            write!(&mut res, "{str:>pad_width$}").unwrap();
-                        }
+                if length_modifier == Some("l") || specifier == b'S' {
+                    if specifier == b'S' {
+                        assert!(length_modifier.is_none());
+                    }
+                    assert!(precision.is_none());
+                    assert!(!left_justified);
+                    let ctype_locale = setlocale(env, LC_CTYPE, Ptr::null());
+                    assert_eq!(env.mem.read(ctype_locale), b'C');
+                    let w_string: ConstPtr<wchar_t> = args.next(env);
+                    assert!(pad_char == ' ' && pad_width == 0); // TODO
+                    if !w_string.is_null() {
+                        res.extend_from_slice(env.mem.wcstr_at(w_string).as_bytes());
                     } else {
-                        res.extend_from_slice(env.mem.cstr_at(c_string));
+                        res.extend_from_slice("(null)".as_bytes());
                     }
                 } else {
-                    assert!(!left_justified);
-                    assert!(precision.is_none());
-                    res.extend_from_slice("(null)".as_bytes());
-                }
-            }
-            b'S' => {
-                assert!(!prepend_sign);
-                assert!(!left_justified);
-                // TODO: support length modifier
-                assert!(length_modifier.is_none());
-                // TODO: support other locales
-                let ctype_locale = setlocale(env, LC_CTYPE, Ptr::null());
-                assert_eq!(env.mem.read(ctype_locale), b'C');
-                let w_string: ConstPtr<wchar_t> = args.next(env);
-                assert!(pad_char == ' ' && pad_width == 0); // TODO
-                if !w_string.is_null() {
-                    res.extend_from_slice(env.mem.wcstr_at(w_string).as_bytes());
-                } else {
-                    res.extend_from_slice("(null)".as_bytes());
+                    assert!(length_modifier.is_none()); // TODO
+                    let c_string: ConstPtr<u8> = args.next(env);
+                    assert!(pad_char == ' '); // TODO
+                    if !c_string.is_null() {
+                        if let Some(precision) = precision {
+                            assert!(!left_justified);
+                            let str_len = strlen(env, c_string);
+                            res.extend_from_slice(
+                                env.mem.bytes_at(c_string, str_len.min(precision as _)),
+                            )
+                        } else if pad_width > 0 {
+                            let pad_width = pad_width as usize;
+                            let str = env.mem.cstr_at_utf8(c_string).unwrap();
+                            if left_justified {
+                                write!(&mut res, "{str:<pad_width$}").unwrap();
+                            } else {
+                                write!(&mut res, "{str:>pad_width$}").unwrap();
+                            }
+                        } else {
+                            res.extend_from_slice(env.mem.cstr_at(c_string));
+                        }
+                    } else {
+                        assert!(!left_justified);
+                        assert!(precision.is_none());
+                        res.extend_from_slice("(null)".as_bytes());
+                    }
                 }
             }
             b'd' | b'i' | b'u' => {
