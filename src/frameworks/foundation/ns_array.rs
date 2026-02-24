@@ -14,6 +14,9 @@ use super::{
     _nib_archive_decoder,
 };
 use crate::abi::{CallFromHost, GuestFunction};
+use crate::frameworks::foundation::ns_keyed_archiver::{
+    encode_object, get_value_to_encode_for_current_key,
+};
 use crate::fs::GuestPath;
 use crate::libc::stdlib::qsort::qsort_generic;
 use crate::mem::{ConstPtr, MutPtr, MutVoidPtr, Ptr};
@@ -347,6 +350,18 @@ pub const CLASSES: ClassExports = objc_classes! {
     host_object.array = objects; // objects are already retained
     this
 }
+- (())encodeWithCoder:(id)coder {
+    let host_obj: ArrayHostObject = std::mem::take(env.objc.borrow_mut(this));
+    let mut encoded_vals = vec![];
+    for v in &host_obj.array {
+        let vv = encode_object(env, coder, *v);
+        encoded_vals.push(plist::Value::Uid(vv));
+    }
+    *env.objc.borrow_mut(this) = host_obj;
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
+}
 
 - (id)initWithArray:(id)array { // NSArray*
     let mut objects = Vec::new();
@@ -535,6 +550,18 @@ pub const CLASSES: ClassExports = objc_classes! {
     assert!(host_object.array.is_empty());
     host_object.array = objects; // objects are already retained
     this
+}
+- (())encodeWithCoder:(id)coder {
+    let host_obj: ArrayHostObject = std::mem::take(env.objc.borrow_mut(this));
+    let mut encoded_vals = vec![];
+    for v in &host_obj.array {
+        let vv = encode_object(env, coder, *v);
+        encoded_vals.push(plist::Value::Uid(vv));
+    }
+    *env.objc.borrow_mut(this) = host_obj;
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
 }
 
 // NSCopying implementation

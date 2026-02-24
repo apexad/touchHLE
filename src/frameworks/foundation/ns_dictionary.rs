@@ -19,6 +19,9 @@ use crate::frameworks::foundation::ns_enumerator::{
 use crate::frameworks::foundation::ns_file_manager::{
     NSFileModificationDate, NSFileSize, NSFileType,
 };
+use crate::frameworks::foundation::ns_keyed_archiver::{
+    encode_object, get_value_to_encode_for_current_key,
+};
 use crate::fs::GuestPath;
 use crate::mem::{ConstPtr, MutPtr, Ptr, SafeRead};
 use crate::objc::{
@@ -706,6 +709,24 @@ pub const CLASSES: ClassExports = objc_classes! {
     let mut_dict = msg![env; dict mutableCopy];
     release(env, dict);
     mut_dict
+}
+- (())encodeWithCoder:(id)coder {
+    let host_obj: DictionaryHostObject = std::mem::take(env.objc.borrow_mut(this));
+    let mut encoded_keys = vec![];
+    let mut encoded_vals = vec![];
+    for (k, _) in host_obj.map.values().flatten() {
+        let kk = encode_object(env, coder, *k);
+        encoded_keys.push(plist::Value::Uid(kk));
+    }
+    for (_, v) in host_obj.map.values().flatten() {
+        let vv = encode_object(env, coder, *v);
+        encoded_vals.push(plist::Value::Uid(vv));
+    }
+    *env.objc.borrow_mut(this) = host_obj;
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert("NS.keys".to_string(), plist::Value::Array(encoded_keys));
+    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
 }
 
 - (id)initWithObjects:(id)objects //NSArray *

@@ -6,12 +6,15 @@
 //! The `NSValue` class cluster, including `NSNumber`.
 
 use super::ns_string::{from_rust_ordering, from_rust_string};
-use super::{NSComparisonResult, NSOrderedSame, NSUInteger, _nib_archive_decoder};
+use super::{
+    NSComparisonResult, NSOrderedSame, NSUInteger, _nib_archive_decoder, ns_keyed_unarchiver,
+};
 use crate::frameworks::core_foundation::cf_number::{
     kCFNumberCharType, kCFNumberFloat32Type, kCFNumberFloatType, kCFNumberIntType,
     kCFNumberSInt16Type, kCFNumberSInt32Type, kCFNumberSInt8Type, kCFNumberShortType, CFNumberType,
 };
 use crate::frameworks::core_graphics::{CGPoint, CGRect, CGSize};
+use crate::frameworks::foundation::ns_keyed_archiver::get_value_to_encode_for_current_key;
 use crate::frameworks::foundation::NSInteger;
 use crate::mem::{ConstVoidPtr, MutVoidPtr};
 use crate::objc::{
@@ -277,14 +280,28 @@ pub const CLASSES: ClassExports = objc_classes! {
 // NSCoding implementation
 - (id)initWithCoder:(id)coder {
     let class: Class = msg![env; coder class];
+    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
     let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
-    let new_num = if env.objc.class_is_subclass_of(class, nib_archive_class) {
+    let new_num = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
+        ns_keyed_unarchiver::decode_current_number(env, coder)
+    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
         _nib_archive_decoder::decode_current_number(env, coder)
     } else {
         unimplemented!();
     };
     release(env, this);
     new_num
+}
+- (())encodeWithCoder:(id)coder {
+    let host_object = env.objc.borrow::<NSNumberHostObject>(this);
+    let (key, val) = match host_object {
+        NSNumberHostObject::Int(i) => ("NS.intval", plist::Value::Integer((*i).into())),
+        NSNumberHostObject::Double(d) => ("NS.dblval", plist::Value::Real(*d)),
+        _ => unimplemented!("{:?}", host_object)
+    };
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert(key.to_string(), val);
 }
 
 - (id)initWithBool:(bool)value {

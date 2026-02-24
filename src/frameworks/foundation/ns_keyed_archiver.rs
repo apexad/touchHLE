@@ -137,7 +137,7 @@ fn normalize_key(env: &mut Environment, key: id) -> String {
     key.to_string()
 }
 
-fn get_value_to_encode_for_current_key(env: &mut Environment, archiver: id) -> &mut Dictionary {
+pub fn get_value_to_encode_for_current_key(env: &mut Environment, archiver: id) -> &mut Dictionary {
     assert_eq!(
         env.objc
             .borrow::<NSKeyedArchiverHostObject>(archiver)
@@ -160,7 +160,7 @@ fn get_value_to_encode_for_current_key(env: &mut Environment, archiver: id) -> &
     .unwrap()
 }
 
-fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
+pub fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
     let class = msg![env; object class];
     let host_object = env.objc.borrow_mut::<NSKeyedArchiverHostObject>(archiver);
     if let Some(existing_uid) = host_object.already_archived.get(&object).cloned() {
@@ -179,12 +179,25 @@ fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
         let new_uid = Uid::new(len as u64 - 1);
         if object == class {
             // If the class selector returns itself, we're encoding a Class
-            let classname = Value::String(env.objc.get_class_name(class).into());
+            let mut classname = None;
             let mut classes = Vec::new();
             let mut current_class = class;
             while current_class != nil {
                 let class_name = env.objc.get_class_name(current_class);
-                classes.push(Value::String(class_name.into()));
+                // We don't want to encode classes of our private
+                // implementations! Instead, we only encode `public`
+                // classes. We also assume following general inheritance chain:
+                // Class1 -> ... -> ClassN -> _touchHLE_ClassA ->
+                // ... -> _touchHLE_ClassZ
+                // In that case an instance of _touchHLE_ClassZ would be
+                // encoded as instance of ClassN. And classes Class1 to
+                // ClassN would be encoded as well.
+                if !class_name.starts_with("_touchHLE") {
+                    if classname.is_none() {
+                        classname = Some(Value::String(class_name.into()));
+                    }
+                    classes.push(Value::String(class_name.into()));
+                }
                 current_class = env.objc.get_superclass(current_class);
             }
             let host_object = env.objc.borrow_mut::<NSKeyedArchiverHostObject>(archiver);
@@ -199,7 +212,7 @@ fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
                 .as_dictionary_mut()
                 .unwrap();
             entry.insert("$classes".into(), Value::Array(classes));
-            entry.insert("$classname".into(), classname);
+            entry.insert("$classname".into(), classname.unwrap());
         } else {
             let previous_key = env
                 .objc
