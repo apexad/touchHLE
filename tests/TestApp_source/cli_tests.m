@@ -4436,6 +4436,152 @@ int test_strftime() {
   return 0;
 }
 
+@interface InvocationTarget : NSObject {
+@public
+  id receivedValue;
+}
+- (void)storeValue:(id)value;
+- (void)clearValue;
+@end
+
+@implementation InvocationTarget
+- (void)storeValue:(id)value {
+  receivedValue = value;
+}
+- (void)clearValue {
+  receivedValue = nil;
+}
+@end
+
+int test_NSMethodSignature() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  // "v12@0:4@8" = void return, 3 args: self(@), _cmd(:), one id(@)
+  NSMethodSignature *sig =
+      [NSMethodSignature signatureWithObjCTypes:"v12@0:4@8"];
+
+  if ([sig numberOfArguments] != 3) {
+    [pool drain];
+    return -1;
+  }
+
+  // methodReturnType should be "v"
+  if (strcmp([sig methodReturnType], "v") != 0) {
+    [pool drain];
+    return -2;
+  }
+
+  // arg 0 = "@" (self)
+  if (strcmp([sig getArgumentTypeAtIndex:0], "@") != 0) {
+    [pool drain];
+    return -3;
+  }
+
+  // arg 1 = ":" (SEL)
+  if (strcmp([sig getArgumentTypeAtIndex:1], ":") != 0) {
+    [pool drain];
+    return -4;
+  }
+
+  // arg 2 = "@" (id argument)
+  if (strcmp([sig getArgumentTypeAtIndex:2], "@") != 0) {
+    [pool drain];
+    return -5;
+  }
+
+  // "v8@0:4" = void return, 2 args: self, _cmd (no extra args)
+  NSMethodSignature *sig2 = [NSMethodSignature signatureWithObjCTypes:"v8@0:4"];
+  if ([sig2 numberOfArguments] != 2) {
+    [pool drain];
+    return -6;
+  }
+  if (strcmp([sig2 methodReturnType], "v") != 0) {
+    [pool drain];
+    return -7;
+  }
+
+  [pool drain];
+  return 0;
+}
+
+int test_NSInvocation() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  InvocationTarget *target = [InvocationTarget new];
+  NSMethodSignature *sig =
+      [NSMethodSignature signatureWithObjCTypes:"v12@0:4@8"];
+  NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+
+  [inv setTarget:target];
+  SEL sel = NSSelectorFromString([NSString stringWithUTF8String:"storeValue:"]);
+  [inv setSelector:sel];
+
+  // setArgument:atIndex: takes a pointer to the argument value
+  NSObject *val = [NSObject new];
+  [inv setArgument:&val atIndex:2];
+  [inv invoke];
+
+  if (target->receivedValue != val) {
+    [pool drain];
+    return -1;
+  }
+
+  [pool drain];
+  return 0;
+}
+
+int test_NSInvocation_invokeWithTarget() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  InvocationTarget *target1 = [InvocationTarget new];
+  InvocationTarget *target2 = [InvocationTarget new];
+  NSMethodSignature *sig =
+      [NSMethodSignature signatureWithObjCTypes:"v12@0:4@8"];
+  NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+
+  [inv setTarget:target1];
+  SEL sel = NSSelectorFromString([NSString stringWithUTF8String:"storeValue:"]);
+  [inv setSelector:sel];
+
+  NSObject *val = [NSObject new];
+  [inv setArgument:&val atIndex:2];
+
+  // invokeWithTarget: should use target2, not target1
+  [inv invokeWithTarget:target2];
+
+  if (target2->receivedValue != val) {
+    [pool drain];
+    return -1;
+  }
+
+  [pool drain];
+  return 0;
+}
+
+int test_NSInvocation_retainArguments() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  InvocationTarget *target = [InvocationTarget new];
+  NSMethodSignature *sig = [NSMethodSignature signatureWithObjCTypes:"v8@0:4"];
+  NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+
+  [inv setTarget:target];
+  SEL sel = NSSelectorFromString([NSString stringWithUTF8String:"clearValue"]);
+  [inv setSelector:sel];
+
+  // retainArguments should not crash
+  [inv retainArguments];
+  [inv invoke];
+
+  if (target->receivedValue != nil) {
+    [pool drain];
+    return -1;
+  }
+
+  [pool drain];
+  return 0;
+}
+
 @interface CharBufferObject : NSObject {
 @public
   char *buffer;
@@ -4850,6 +4996,10 @@ struct {
     FUNC_DEF(test_NSKeyedArchiver_NSKeyedUnarchiver),
     FUNC_DEF(test_AutoreleasePool),
     FUNC_DEF(test_NSNumber_stringValue),
+    FUNC_DEF(test_NSMethodSignature),
+    FUNC_DEF(test_NSInvocation),
+    FUNC_DEF(test_NSInvocation_invokeWithTarget),
+    FUNC_DEF(test_NSInvocation_retainArguments),
 };
 // clang-format on
 

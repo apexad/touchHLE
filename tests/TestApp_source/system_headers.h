@@ -149,6 +149,23 @@ typedef double NSTimeInterval;
 
 SEL NSSelectorFromString(NSString *);
 
+@interface NSMethodSignature : NSObject
++ (instancetype)signatureWithObjCTypes:(const char *)types;
+- (NSUInteger)numberOfArguments;
+- (const char *)getArgumentTypeAtIndex:(NSUInteger)idx;
+- (const char *)methodReturnType;
+@end
+
+@interface NSInvocation : NSObject
++ (instancetype)invocationWithMethodSignature:(NSMethodSignature *)sig;
+- (void)setTarget:(id)target;
+- (void)setSelector:(SEL)sel;
+- (void)setArgument:(void *)arg atIndex:(NSInteger)idx;
+- (void)retainArguments;
+- (void)invoke;
+- (void)invokeWithTarget:(id)target;
+@end
+
 // Core Graphics
 
 // (See CGAffineTransform.c for where this define comes from.)
