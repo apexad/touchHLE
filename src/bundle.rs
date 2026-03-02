@@ -251,7 +251,14 @@ impl Bundle {
                 v.as_array()
                     .unwrap()
                     .iter()
-                    .map(|o| DeviceFamily::try_from(o.as_unsigned_integer().unwrap()).unwrap())
+                    .map(|o| {
+                        DeviceFamily::try_from(match o {
+                            Value::Integer(i) => i.as_unsigned().unwrap(),
+                            Value::String(s) => s.parse().unwrap(),
+                            _ => unreachable!(),
+                        })
+                        .unwrap()
+                    })
                     .collect()
             })
             .unwrap_or_else(|| vec![DeviceFamily::iPhone])
