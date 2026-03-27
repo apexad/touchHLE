@@ -414,6 +414,20 @@ fn modff(env: &mut Environment, val: f32, iptr: MutPtr<f32>) -> f32 {
     env.mem.write(iptr, ivalue);
     val - ivalue
 }
+fn rint(env: &mut Environment, arg: f64) -> f64 {
+    // TODO: handle errno properly
+    set_errno(env, 0);
+
+    match env.libc_state.math.rounding_direction {
+        FE_TONEAREST => {
+            // As tested on both macOS and iOS Simulator, by default it
+            // rounds to the nearest integer with ties on even
+            arg.round_ties_even()
+        }
+        FE_TOWARDZERO => arg.trunc(),
+        _ => unimplemented!(),
+    }
+}
 fn lrint(env: &mut Environment, arg: f64) -> i32 {
     // TODO: handle errno properly
     set_errno(env, 0);
@@ -572,6 +586,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(truncf(_)),
     export_c_func!(modf(_, _)),
     export_c_func!(modff(_, _)),
+    export_c_func!(rint(_)),
     export_c_func!(lrint(_)),
     export_c_func!(lrintf(_)),
     // Rounding direction
