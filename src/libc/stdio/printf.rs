@@ -272,20 +272,18 @@ pub fn printf_inner<const NS_LOG: bool, F: Fn(&Mem, GuestUSize) -> u8>(
                         let uint: u32 = args.next(env);
                         uint.into()
                     }
+                } else if length_modifier == Some("ll") {
+                    args.next(env)
+                } else if length_modifier == Some("hh") {
+                    let int: i8 = args.next(env);
+                    int.into()
+                } else if length_modifier == Some("h") {
+                    let int: i16 = args.next(env);
+                    int.into()
                 } else {
-                    if length_modifier == Some("ll") {
-                        args.next(env)
-                    } else if length_modifier == Some("hh") {
-                        let int: i8 = args.next(env);
-                        int.into()
-                    } else if length_modifier == Some("h") {
-                        let int: i16 = args.next(env);
-                        int.into()
-                    } else {
-                        assert!(length_modifier.is_none() || length_modifier == Some("l"));
-                        let int: i32 = args.next(env);
-                        int.into()
-                    }
+                    assert!(length_modifier.is_none() || length_modifier == Some("l"));
+                    let int: i32 = args.next(env);
+                    int.into()
                 };
 
                 let int_with_precision = if precision.is_some_and(|value| value > 0) {
