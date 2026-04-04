@@ -25,6 +25,8 @@ Compatibility:
   - [N.O.V.A. 2: The Hero Rises Again](https://appdb.touchhle.org/apps/444) (@ciciplusplus)
   - [Star Battalion](https://appdb.touchhle.org/apps/421) (@ciciplusplus)
   - [Ice Age: Dawn of the Dinosaurs](https://appdb.touchhle.org/apps/60) (@ciciplusplus)
+  - [Zombieville](https://appdb.touchhle.org/apps/1183) (@ciciplusplus)
+  - [Doom Resurrection](https://appdb.touchhle.org/apps/278) (@ciciplusplus)
 - API support improvements:
   - Various small contributions. (@hikari-no-yume, @ciciplusplus, @zazatree, @abnormalmaps, @alborrajo, @acieslewicz, @zazatree)
   - Several changes have been made to fix certain apps and games that should appear in landscape, but previously were displayed stretched, cropped and/or un-rotated:
@@ -35,6 +37,7 @@ Compatibility:
 - Improved support for iOS 3.1+:
   - The bundled dynamic libraries, libgcc and libstdc++, have been updated to their iOS 4.0.1 versions. (@ciciplusplus)
   - Support for NIBArchive NIB file format decoding. (@ciciplusplus)
+- Switch to coroutine based threading system. This solved [some compatibility issues](https://github.com/touchHLE/touchHLE/issues/119) and improved performance in some games. (@abnormalmaps)
 
 ## v0.2.3 (2026-01-02)
 
