@@ -1034,7 +1034,6 @@ where
                 }
             }
             b'[' => {
-                assert_eq!(max_width, 0);
                 assert!(length_modifier.is_none());
                 // [set] case
                 assert_ne!(env.mem.read(format + format_char_idx), b']');
@@ -1066,19 +1065,27 @@ where
                 }
                 let mut dst_ptr: MutPtr<u8> = args.next(env);
                 let mut matched = false;
-                // Consume `src` while chars are not in the set
+                // Consume `src` while chars are in the set
+                // (or not in the set if inverted)
                 let mut cc = getc_fn(env, subject, src_char_idx).unwrap().into(); // TODO: EOF
                 src_char_idx += 1;
+                let mut match_count = 0;
                 while set.contains(&cc) ^ inverted && cc != b'\0' {
                     matched = true;
                     env.mem.write(dst_ptr, cc);
                     dst_ptr += 1;
+                    match_count += 1;
+                    if max_width > 0 && match_count == max_width {
+                        break;
+                    }
                     cc = getc_fn(env, subject, src_char_idx).unwrap().into(); // TODO: EOF
                     src_char_idx += 1;
                 }
-                // we need to backtrack one position
-                ungetc_fn(env, subject, cc);
-                src_char_idx -= 1;
+                if !(set.contains(&cc) ^ inverted && cc != b'\0') {
+                    // We need to backtrack one position
+                    ungetc_fn(env, subject, cc);
+                    src_char_idx -= 1;
+                }
                 if matched {
                     env.mem.write(dst_ptr, b'\0');
                 } else {

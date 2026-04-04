@@ -538,7 +538,7 @@ int test_sscanf() {
   short c, d;
   float f;
   double lf;
-  char str[256], str1[4];
+  char str[256], str1[16];
   int matched = sscanf("1.23", "%d.%d", &a, &b);
   if (!(matched == 2 && a == 1 && b == 23))
     return -1;
@@ -673,7 +673,46 @@ int test_sscanf() {
   matched = sscanf("123.", "%g", &f);
   if (!(matched == 1 && f == 123.0f))
     return -44;
-
+  // max_width for %[ specifier
+  matched = sscanf("hello", "%3[a-z]", str);
+  if (!(matched == 1 && strcmp(str, "hel") == 0))
+    return -45;
+  matched = sscanf("abcXYZ", "%3[a-z]%3[A-Z]", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "XYZ") == 0))
+    return -46;
+  matched = sscanf("abc,def", "%3[^,],%3[^,]", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -47;
+  matched = sscanf("abcdef", "%3[a-z]", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -48;
+  matched = sscanf("ab", "%5[a-z]", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -49;
+  // width of 1
+  matched = sscanf("abc", "%1[a-z]", str);
+  if (!(matched == 1 && strcmp(str, "a") == 0))
+    return -50;
+  // negated set stopped by width, not by excluded char
+  matched = sscanf("abcde", "%3[^X]", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -51;
+  // negated set stopped by excluded char before width is reached
+  matched = sscanf("abXde", "%5[^X]", str);
+  if (!(matched == 1 && strcmp(str, "ab") == 0))
+    return -52;
+  // input length exactly equals width
+  matched = sscanf("abc", "%3[a-z]", str);
+  if (!(matched == 1 && strcmp(str, "abc") == 0))
+    return -53;
+  // width limits %[ leaving remainder for next conversion
+  matched = sscanf("abcdef", "%3[a-z]%s", str, str1);
+  if (!(matched == 2 && strcmp(str, "abc") == 0 && strcmp(str1, "def") == 0))
+    return -54;
+  // first char not in set with width: no match
+  matched = sscanf("123", "%3[a-z]", str);
+  if (matched != 0)
+    return -55;
   return 0;
 }
 
