@@ -1155,7 +1155,7 @@ void *child(void *arg) {
 
 void *child2(void *arg) {
   pthread_mutex_lock(&m);
-  while (done == 0) {
+  while (done2 == 0) {
     pthread_cond_wait(&c2, &m);
   }
   pthread_mutex_unlock(&m);
@@ -1179,22 +1179,25 @@ int test_cond_var() {
   pthread_create(&p, NULL, child, NULL);
   thr_join();
 
+  if (done != 1)
+    return -1;
+
   // Should wake up all threads
   pthread_t p1, p2, p3;
   pthread_cond_init(&c2, NULL);
-  pthread_create(&p1, NULL, child, NULL);
-  pthread_create(&p2, NULL, child, NULL);
-  pthread_create(&p3, NULL, child, NULL);
+  pthread_create(&p1, NULL, child2, NULL);
+  pthread_create(&p2, NULL, child2, NULL);
+  pthread_create(&p3, NULL, child2, NULL);
   usleep(100);
   pthread_mutex_lock(&m);
-  done = 1;
-  pthread_cond_broadcast(&c);
+  done2 = 1;
+  pthread_cond_broadcast(&c2);
   pthread_mutex_unlock(&m);
   pthread_join(p1, NULL);
   pthread_join(p2, NULL);
   pthread_join(p3, NULL);
 
-  return done == 1 ? 0 : -1;
+  return 0;
 }
 
 pthread_mutex_t normal_mutex;
