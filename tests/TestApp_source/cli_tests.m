@@ -629,6 +629,50 @@ int test_sscanf() {
   if (!(matched == 8 && strcmp(str, "\"origin\"") == 0 && a == -1 && f1 == 0 &&
         fabs(f4 + 0.7071067095) < 1e-10 && f6 == 0))
     return -30;
+  // '%g' test cases
+  matched = sscanf("123", "%g", &f);
+  if (!(matched == 1 && f == 123.0f))
+    return -31;
+  matched = sscanf("1.23", "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -32;
+  matched = sscanf("1.23e-4", "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23e-4f) < 1e-8f))
+    return -33;
+  matched = sscanf("1.23E4", "%g", &f);
+  if (!(matched == 1 && fabs(f - 12300.0f) < 1e-5f))
+    return -34;
+  matched = sscanf("+1.23", "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -35;
+  matched = sscanf("-1.23", "%g", &f);
+  if (!(matched == 1 && fabs(f - -1.23f) < 1e-5f))
+    return -36;
+  matched = sscanf(".5", "%g", &f);
+  if (!(matched == 1 && fabs(f - 0.5f) < 1e-5f))
+    return -37;
+  matched = sscanf("-.5", "%g", &f);
+  if (!(matched == 1 && fabs(f - -0.5f) < 1e-5f))
+    return -38;
+  matched = sscanf("1e5", "%g", &f);
+  if (!(matched == 1 && fabs(f - 100000.0f) < 1e-5f))
+    return -39;
+  matched = sscanf("1.e5", "%g", &f);
+  if (!(matched == 1 && fabs(f - 100000.0f) < 1e-5f))
+    return -40;
+  matched = sscanf("  1.23", "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -41;
+  matched = sscanf("+1.23e+4", "%g", &f);
+  if (!(matched == 1 && fabs(f - 12300.0f) < 1e-5f))
+    return -42;
+  matched = sscanf("-1.23e-4", "%g", &f);
+  if (!(matched == 1 && fabs(f - -0.000123f) < 1e-8f))
+    return -43;
+  matched = sscanf("123.", "%g", &f);
+  if (!(matched == 1 && f == 123.0f))
+    return -44;
+
   return 0;
 }
 
@@ -1887,6 +1931,77 @@ int test_fscanf_new() {
   if (!(matched == 8 && strcmp(str, "\"origin\"") == 0 && a == -1 &&
         f1 == 0.0f && fabs(f4 + 0.7071067095f) < 1e-10f && f6 == 0.0f))
     return -30;
+  SKIP_LINE(file);
+
+  // '%g' test cases
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && f == 123.0f))
+    return -31;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -32;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23e-4f) < 1e-8f))
+    return -33;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 12300.0f) < 1e-5f))
+    return -34;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -35;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - -1.23f) < 1e-5f))
+    return -36;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 0.5f) < 1e-5f))
+    return -37;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - -0.5f) < 1e-5f))
+    return -38;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 100000.0f) < 1e-5f))
+    return -39;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 100000.0f) < 1e-5f))
+    return -40;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 1.23f) < 1e-5f))
+    return -41;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - 12300.0f) < 1e-5f))
+    return -42;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && fabs(f - -0.000123f) < 1e-8f))
+    return -43;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%g", &f);
+  if (!(matched == 1 && f == 123.0f))
+    return -44;
 
   fclose(file);
   return 0;

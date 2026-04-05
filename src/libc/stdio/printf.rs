@@ -982,7 +982,7 @@ where
                     }
                 }
             }
-            b'f' => {
+            b'f' | b'g' => {
                 assert_eq!(max_width, 0); // TODO
                 let res = atof_inner_generic(env, &getc_fn, &ungetc_fn, subject, src_char_idx);
                 let val = match res {
