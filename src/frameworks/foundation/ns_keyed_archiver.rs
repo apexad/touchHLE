@@ -205,6 +205,8 @@ fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
                 .borrow_mut::<NSKeyedArchiverHostObject>(archiver)
                 .current_key = previous_key;
         }
+        let host_object = env.objc.borrow_mut::<NSKeyedArchiverHostObject>(archiver);
+        host_object.already_archived.insert(object, new_uid);
         new_uid
     }
 }
