@@ -4803,6 +4803,52 @@ int test_NSInvocation_pointer() {
 }
 @end
 
+@interface IntCoderObject : NSObject {
+@public
+  int value;
+}
+@end
+
+@implementation IntCoderObject
+- (instancetype)initWithValue:(int)v {
+  self = [super init];
+  value = v;
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder {
+  [coder encodeInt:value forKey:[NSString stringWithUTF8String:"value"]];
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
+  self = [super init];
+  value = [coder decodeIntForKey:[NSString stringWithUTF8String:"value"]];
+  return self;
+}
+@end
+
+int test_NSKeyedArchiver_encodeIntForKey() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  int values[] = {12345, 0, -1, -12345, 0x7FFFFFFF, -0x80000000};
+  int count = sizeof(values) / sizeof(int);
+
+  for (int i = 0; i < count; i++) {
+    IntCoderObject *obj = [[IntCoderObject alloc] initWithValue:values[i]];
+    NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:obj];
+    IntCoderObject *unarchivedObj =
+        [NSKeyedUnarchiver unarchiveObjectWithData:archivedData];
+
+    if (unarchivedObj->value != values[i]) {
+      [pool drain];
+      return -(i + 1);
+    }
+  }
+
+  [pool drain];
+  return 0;
+}
+
 int test_NSKeyedArchiver_NSKeyedUnarchiver() {
   NSAutoreleasePool *pool = [NSAutoreleasePool new];
   char buffer[100];
@@ -5168,6 +5214,7 @@ struct {
     FUNC_DEF(test_strptime),
     FUNC_DEF(test_strftime),
     FUNC_DEF(test_RespondsToSelector),
+    FUNC_DEF(test_NSKeyedArchiver_encodeIntForKey),
     FUNC_DEF(test_NSKeyedArchiver_NSKeyedUnarchiver),
     FUNC_DEF(test_AutoreleasePool),
     FUNC_DEF(test_NSNumber_stringValue),

@@ -137,6 +137,8 @@ typedef double NSTimeInterval;
              forKey:(NSString *)key;
 - (const uint8_t *)decodeBytesForKey:(NSString *)key
                       returnedLength:(NSUInteger *)lengthp;
+- (void)encodeInt:(int)value forKey:(NSString *)key;
+- (int)decodeIntForKey:(NSString *)key;
 @end
 
 @interface NSKeyedArchiver : NSCoder
