@@ -25,6 +25,8 @@ pub const DYLIB: HostDylib = HostDylib {
 };
 
 type CLLocationAccuracy = f64;
+type CLLocationDegrees = f64;
+type CLLocationDistance = f64;
 
 const CLASSES: ClassExports = objc_classes! {
 
@@ -61,6 +63,12 @@ const CLASSES: ClassExports = objc_classes! {
 - (())setDesiredAccuracy:(CLLocationAccuracy)_acc {
     // TODO
 }
+- (())setHeadingFilter:(CLLocationDegrees)_filter {
+    // TODO
+}
+- (())setDistanceFilter:(CLLocationDistance)_filter {
+    // TODO
+}
 
 @end
 
@@ -70,7 +78,13 @@ const CLASSES: ClassExports = objc_classes! {
 
 };
 
-const CONSTANTS: ConstantExports = &[(
-    "_kCLLocationAccuracyKilometer",
-    HostConstant::Custom(|env| env.mem.alloc_and_write(1000f64).cast().cast_const()),
-)];
+const CONSTANTS: ConstantExports = &[
+    (
+        "_kCLHeadingFilterNone",
+        HostConstant::Custom(|env| env.mem.alloc_and_write(-1f64).cast().cast_const()),
+    ),
+    (
+        "_kCLLocationAccuracyKilometer",
+        HostConstant::Custom(|env| env.mem.alloc_and_write(1000f64).cast().cast_const()),
+    ),
+];
