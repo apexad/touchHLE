@@ -189,7 +189,9 @@ com.mastertronic.casper: --force-composition
 4rv4l3j0ur: --landscape-left
 
 # Brothers In Arms: Hour Of Heroes
-com.gameloft.BIA: --landscape-left
+# 52 bytes corresponds to the size of PVRTC texture header stored on the stack.
+# This prevents "Game Card has been removed" issue.
+com.gameloft.BIA: --landscape-left --zero-stack-after-guest-to-host-call=52
 
 # Hero of Sparta II
 # Stick = Move, A = Jump, B = Quick attack, X = Block, Y = Weapon select, LeftShoulder = Focus kill
