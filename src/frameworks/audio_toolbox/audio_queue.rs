@@ -18,16 +18,14 @@ use crate::frameworks::carbon_core::OSStatus;
 use crate::frameworks::core_audio_types::{
     debug_fourcc, fourcc, kAudioFormatAppleIMA4, kAudioFormatFlagIsBigEndian,
     kAudioFormatFlagIsFloat, kAudioFormatFlagIsPacked, kAudioFormatFlagIsSignedInteger,
-    kAudioFormatLinearPCM, AudioStreamBasicDescription,
+    kAudioFormatLinearPCM, AudioStreamBasicDescription, AudioTimeStamp,
 };
 use crate::frameworks::core_foundation::cf_run_loop::{
     kCFRunLoopCommonModes, CFRunLoopGetMain, CFRunLoopMode, CFRunLoopRef,
 };
 use crate::frameworks::foundation::ns_run_loop;
 use crate::frameworks::foundation::ns_string::get_static_str;
-use crate::mem::{
-    guest_size_of, ConstPtr, ConstVoidPtr, GuestUSize, Mem, MutPtr, MutVoidPtr, Ptr, SafeRead,
-};
+use crate::mem::{guest_size_of, ConstPtr, GuestUSize, Mem, MutPtr, MutVoidPtr, Ptr, SafeRead};
 use crate::objc::msg;
 use crate::Environment;
 use std::collections::{HashMap, VecDeque};
@@ -319,6 +317,29 @@ pub fn AudioQueueAllocateBuffer(
     env.mem.write(out_buffer, buffer_ptr);
 
     0 // success
+}
+
+fn AudioQueueEnqueueBufferWithParameters(
+    env: &mut Environment,
+    in_aq: AudioQueueRef,
+    in_buffer: AudioQueueBufferRef,
+    in_num_packet_descs: u32,
+    in_packet_descs: MutVoidPtr,
+    in_trim_frames_at_start: u32,
+    in_trim_frames_at_end: u32,
+    in_num_param_values: u32,
+    in_param_values: MutVoidPtr,
+    in_start_time: ConstPtr<AudioTimeStamp>,
+    out_actual_start_time: MutPtr<AudioTimeStamp>,
+) -> OSStatus {
+    // TODO
+    assert_eq!(in_trim_frames_at_start, 0);
+    assert_eq!(in_trim_frames_at_end, 0);
+    assert_eq!(in_num_param_values, 0);
+    assert!(in_param_values.is_null());
+    assert!(in_start_time.is_null());
+    assert!(out_actual_start_time.is_null());
+    AudioQueueEnqueueBuffer(env, in_aq, in_buffer, in_num_packet_descs, in_packet_descs)
 }
 
 pub fn AudioQueueEnqueueBuffer(
@@ -876,7 +897,7 @@ fn notify_aq_is_running(env: &mut Environment, in_aq: AudioQueueRef) {
 pub fn AudioQueueStart(
     env: &mut Environment,
     in_aq: AudioQueueRef,
-    in_device_start_time: ConstVoidPtr, // should be `const AudioTimeStamp*`
+    in_device_start_time: ConstPtr<AudioTimeStamp>,
 ) -> OSStatus {
     return_if_null!(in_aq);
 
@@ -1096,6 +1117,18 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioQueueAllocateBufferWithPacketDescriptions(_, _, _, _)),
     export_c_func!(AudioQueueAllocateBuffer(_, _, _)),
     export_c_func!(AudioQueueEnqueueBuffer(_, _, _, _)),
+    export_c_func!(AudioQueueEnqueueBufferWithParameters(
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _
+    )),
     export_c_func!(AudioQueueAddPropertyListener(_, _, _, _)),
     export_c_func!(AudioQueueRemovePropertyListener(_, _, _, _)),
     export_c_func!(AudioQueueGetPropertySize(_, _, _)),

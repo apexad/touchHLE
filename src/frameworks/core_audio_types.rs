@@ -79,6 +79,32 @@ impl std::fmt::Debug for AudioStreamBasicDescription {
     }
 }
 
+#[repr(C, packed)]
+pub struct SMPTETime {
+    pub subframes: i16,
+    pub subframe_divisor: i16,
+    pub counter: u32,
+    pub type_: u32,
+    pub flags: u32,
+    pub hours: i16,
+    pub minutes: i16,
+    pub seconds: i16,
+    pub frames: i16,
+}
+unsafe impl SafeRead for SMPTETime {}
+
+#[repr(C, packed)]
+pub struct AudioTimeStamp {
+    pub sample_time: f64,
+    pub host_time: u64,
+    pub rate_scalar: f64,
+    pub world_clock_type: u64,
+    pub SMPTE_time: SMPTETime,
+    pub flags: u32,
+    pub _reserved: u32,
+}
+unsafe impl SafeRead for AudioTimeStamp {}
+
 /// Usually a FourCC.
 pub type AudioFormatID = u32;
 pub const kAudioFormatLinearPCM: AudioFormatID = fourcc(b"lpcm");
