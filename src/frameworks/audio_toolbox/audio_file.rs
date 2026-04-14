@@ -43,10 +43,18 @@ unsafe impl SafeRead for OpaqueAudioFileID {}
 
 pub type AudioFileID = MutPtr<OpaqueAudioFileID>;
 
+#[repr(C, packed)]
+struct AudioFilePacketTableInfo {
+    number_valid_frames: i64,
+    priming_frames: i32,
+    remainder_frames: i32,
+}
+unsafe impl SafeRead for AudioFilePacketTableInfo {}
+
 #[allow(dead_code)]
 const kAudioFileFileNotFoundError: OSStatus = -43;
 const kAudioFileBadPropertySizeError: OSStatus = fourcc(b"!siz") as _;
-const kAudioFileUnsupportedProperty: OSStatus = fourcc(b"pty?") as _;
+const kAudioFileUnsupportedPropertyError: OSStatus = fourcc(b"pty?") as _;
 const kAudioFileUnsupportedFileTypeError: OSStatus = fourcc(b"typ?") as _;
 const kAudioFileUnspecifiedError: OSStatus = fourcc(b"wht?") as _;
 
@@ -66,6 +74,7 @@ pub const kAudioFilePropertyPacketSizeUpperBound: AudioFilePropertyID = fourcc(b
 const kAudioFilePropertyMagicCookieData: AudioFilePropertyID = fourcc(b"mgic");
 const kAudioFilePropertyChannelLayout: AudioFilePropertyID = fourcc(b"cmap");
 const kAudioFilePropertyEstimatedDuration: AudioFilePropertyID = fourcc(b"edur");
+const kAudioFilePropertyPacketTableInfo: AudioFilePropertyID = fourcc(b"pnfo");
 
 pub fn AudioFileOpenURL(
     env: &mut Environment,
@@ -226,6 +235,7 @@ fn property_size(property_id: AudioFilePropertyID) -> GuestUSize {
         kAudioFilePropertyAudioDataPacketCount => guest_size_of::<u64>(),
         kAudioFilePropertyPacketSizeUpperBound => guest_size_of::<u32>(),
         kAudioFilePropertyEstimatedDuration => guest_size_of::<f64>(),
+        kAudioFilePropertyPacketTableInfo => guest_size_of::<AudioFilePacketTableInfo>(),
         _ => unimplemented!("Unimplemented property ID: {}", debug_fourcc(property_id)),
     }
 }
@@ -251,7 +261,7 @@ fn AudioFileGetPropertyInfo(
         if !is_writable.is_null() {
             env.mem.write(is_writable, 0);
         }
-        return kAudioFileUnsupportedProperty;
+        return kAudioFileUnsupportedPropertyError;
     }
     if !out_data_size.is_null() {
         env.mem.write(out_data_size, property_size(in_property_id));
@@ -358,6 +368,10 @@ pub fn AudioFileGetProperty(
                 * frames_per_packet as f64
                 / (bytes_per_packet as f64 * sample_rate);
             env.mem.write(out_property_data.cast(), estimated_duration);
+        }
+        kAudioFilePropertyPacketTableInfo => {
+            log!("TODO: AudioFileGetProperty({:?}, kAudioFilePropertyPacketTableInfo, {:?}, {:?}) -> kAudioFileUnsupportedPropertyError", in_audio_file, io_data_size, out_property_data);
+            return kAudioFileUnsupportedPropertyError;
         }
         _ => unreachable!(),
     }
