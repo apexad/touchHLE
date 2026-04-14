@@ -11,9 +11,9 @@ use crate::audio::AudioDescription;
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::frameworks::carbon_core::{eofErr, OSStatus};
 use crate::frameworks::core_audio_types::{
-    debug_fourcc, fourcc, kAudioFormatAppleIMA4, kAudioFormatFlagIsBigEndian,
-    kAudioFormatFlagIsFloat, kAudioFormatFlagIsPacked, kAudioFormatFlagIsSignedInteger,
-    kAudioFormatLinearPCM, AudioStreamBasicDescription,
+    debug_fourcc, fourcc, kAudioFormatFlagIsBigEndian, kAudioFormatFlagIsFloat,
+    kAudioFormatFlagIsPacked, kAudioFormatFlagIsSignedInteger, kAudioFormatLinearPCM,
+    AudioStreamBasicDescription,
 };
 use crate::frameworks::core_foundation::cf_url::CFURLRef;
 use crate::frameworks::foundation::ns_url::to_rust_path;
@@ -322,19 +322,6 @@ pub fn AudioFileGetProperty(
                         bytes_per_packet,
                         frames_per_packet,
                         bytes_per_frame: bytes_per_packet / frames_per_packet,
-                        channels_per_frame,
-                        bits_per_channel,
-                        _reserved: 0,
-                    }
-                }
-                audio::AudioFormat::AppleIma4 => {
-                    AudioStreamBasicDescription {
-                        sample_rate,
-                        format_id: kAudioFormatAppleIMA4,
-                        format_flags: 0,
-                        bytes_per_packet,
-                        frames_per_packet,
-                        bytes_per_frame: 0, // compressed
                         channels_per_frame,
                         bits_per_channel,
                         _reserved: 0,

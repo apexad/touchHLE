@@ -98,15 +98,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
-name = "caf"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb1715abe8ffd1caeca4e30b9d803ecb75698bef0e59d207d4b0f16757744e7"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "camino"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -767,7 +758,9 @@ dependencies = [
  "symphonia-codec-aac",
  "symphonia-codec-adpcm",
  "symphonia-codec-alac",
+ "symphonia-codec-pcm",
  "symphonia-core",
+ "symphonia-format-caf",
  "symphonia-format-isomp4",
  "symphonia-format-riff",
  "symphonia-metadata",
@@ -816,6 +809,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "symphonia-codec-pcm"
+version = "0.6.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31386721e6ae023d96b73c20f4e0acd88e47a8e02055b64498eb98aedfe4983e"
+dependencies = [
+ "log",
+ "symphonia-core",
+]
+
+[[package]]
 name = "symphonia-common"
 version = "0.6.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -838,6 +841,17 @@ dependencies = [
  "log",
  "num-complex",
  "smallvec",
+]
+
+[[package]]
+name = "symphonia-format-caf"
+version = "0.6.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51c3069e9f59f8b364fb9758fc783c43b6282dc7954b9e9594c7156b8d33665d"
+dependencies = [
+ "log",
+ "symphonia-common",
+ "symphonia-core",
 ]
 
 [[package]]
@@ -978,7 +992,6 @@ dependencies = [
 name = "touchHLE"
 version = "0.2.3"
 dependencies = [
- "caf",
  "cargo-license",
  "cc",
  "cmake",
