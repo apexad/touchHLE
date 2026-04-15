@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -1159,7 +1160,7 @@ int test_thread_suspend_resume() {
   if (thr_info.run_state != TH_STATE_WAITING)
     return -6;
 
-  // Post the semaphore while the thread is suspended — it should not wake up.
+  // Post the semaphore while the thread is suspended - it should not wake up.
   sem_post(thread_suspend_semaphore);
   sched_yield();
 
@@ -1323,6 +1324,271 @@ int test_cond_var_static() {
 
   return 0;
 }
+
+// === pthread_cond_timedwait tests ===
+
+struct timedwait_signaler_args {
+  pthread_mutex_t *mu;
+  pthread_cond_t *cv;
+};
+
+void *timedwait_signaler(void *arg) {
+  struct timedwait_signaler_args *a = arg;
+  usleep(20000); // 20ms - well before the 500ms deadline
+  pthread_mutex_lock(a->mu);
+  pthread_cond_signal(a->cv);
+  pthread_mutex_unlock(a->mu);
+  return NULL;
+}
+
+// Test : signal arrives before deadline - should return 0, not ETIMEDOUT
+int test_cond_timedwait_signaled_before_timeout() {
+  pthread_mutex_t mu;
+  pthread_cond_t cv;
+  if (pthread_mutex_init(&mu, NULL) != 0)
+    return -1;
+  if (pthread_cond_init(&cv, NULL) != 0)
+    return -2;
+
+  struct timedwait_signaler_args args = {&mu, &cv};
+  pthread_t p;
+  if (pthread_create(&p, NULL, timedwait_signaler, &args) != 0)
+    return -3;
+
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  // Generous 500ms deadline
+  struct timespec ts = {.tv_sec = tv.tv_sec,
+                        .tv_nsec = tv.tv_usec * 1000 + 500000000};
+  if (ts.tv_nsec >= 1000000000) {
+    ts.tv_sec += 1;
+    ts.tv_nsec -= 1000000000;
+  }
+
+  pthread_mutex_lock(&mu);
+  int result = pthread_cond_timedwait(&cv, &mu, &ts);
+  pthread_mutex_unlock(&mu);
+
+  pthread_join(p, NULL);
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+
+  if (result != 0)
+    return -4;
+  return 0;
+}
+
+// Test : deadline already in the past - should return ETIMEDOUT immediately
+int test_cond_timedwait_past_deadline() {
+  pthread_mutex_t mu;
+  pthread_cond_t cv;
+  if (pthread_mutex_init(&mu, NULL) != 0)
+    return -1;
+  if (pthread_cond_init(&cv, NULL) != 0)
+    return -2;
+
+  // Use a timestamp far in the past
+  struct timespec ts = {.tv_sec = 1, .tv_nsec = 0};
+
+  pthread_mutex_lock(&mu);
+  int result = pthread_cond_timedwait(&cv, &mu, &ts);
+  pthread_mutex_unlock(&mu);
+
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+
+  if (result != ETIMEDOUT)
+    return -3;
+  return 0;
+}
+
+struct timedwait_broadcast_args {
+  pthread_mutex_t *mu;
+  pthread_cond_t *cv;
+  int ready;
+};
+
+void *timedwait_broadcast_waiter(void *arg) {
+  struct timedwait_broadcast_args *a = arg;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct timespec ts = {.tv_sec = tv.tv_sec,
+                        .tv_nsec = tv.tv_usec * 1000 + 500000000};
+  if (ts.tv_nsec >= 1000000000) {
+    ts.tv_sec += 1;
+    ts.tv_nsec -= 1000000000;
+  }
+  pthread_mutex_lock(a->mu);
+  while (a->ready == 0)
+    pthread_cond_timedwait(a->cv, a->mu, &ts);
+  pthread_mutex_unlock(a->mu);
+  return NULL;
+}
+
+// Test: broadcast wakes all timedwait threads
+int test_cond_timedwait_broadcast() {
+  pthread_mutex_t mu;
+  pthread_cond_t cv;
+  if (pthread_mutex_init(&mu, NULL) != 0)
+    return -1;
+  if (pthread_cond_init(&cv, NULL) != 0)
+    return -2;
+
+  struct timedwait_broadcast_args args = {&mu, &cv, 0};
+  pthread_t p1, p2, p3;
+  if (pthread_create(&p1, NULL, timedwait_broadcast_waiter, &args) != 0)
+    return -3;
+  if (pthread_create(&p2, NULL, timedwait_broadcast_waiter, &args) != 0)
+    return -4;
+  if (pthread_create(&p3, NULL, timedwait_broadcast_waiter, &args) != 0)
+    return -5;
+
+  usleep(50000); // let all three threads reach their waits
+  pthread_mutex_lock(&mu);
+  args.ready = 1;
+  int result = pthread_cond_broadcast(&cv);
+  pthread_mutex_unlock(&mu);
+
+  if (result != 0)
+    return -6;
+
+  pthread_join(p1, NULL);
+  pthread_join(p2, NULL);
+  pthread_join(p3, NULL);
+
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+  return 0;
+}
+
+// Test: timed-out state on a cond must not persist across calls. After one
+// thread times out, a later signaled timedwait on the same cond must
+// return 0, not ETIMEDOUT.
+int test_cond_timedwait_flag_not_sticky() {
+  pthread_mutex_t mu;
+  pthread_cond_t cv;
+  if (pthread_mutex_init(&mu, NULL) != 0)
+    return -1;
+  if (pthread_cond_init(&cv, NULL) != 0)
+    return -2;
+
+  // First call: force an immediate timeout.
+  struct timespec past = {.tv_sec = 1, .tv_nsec = 0};
+  pthread_mutex_lock(&mu);
+  int first = pthread_cond_timedwait(&cv, &mu, &past);
+  pthread_mutex_unlock(&mu);
+  if (first != ETIMEDOUT)
+    return -3;
+
+  // Second call on the same cond: should be signaled and return 0.
+  struct timedwait_signaler_args args = {&mu, &cv};
+  pthread_t p;
+  if (pthread_create(&p, NULL, timedwait_signaler, &args) != 0)
+    return -4;
+
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct timespec ts = {.tv_sec = tv.tv_sec,
+                        .tv_nsec = tv.tv_usec * 1000 + 500000000};
+  if (ts.tv_nsec >= 1000000000) {
+    ts.tv_sec += 1;
+    ts.tv_nsec -= 1000000000;
+  }
+
+  pthread_mutex_lock(&mu);
+  int second = pthread_cond_timedwait(&cv, &mu, &ts);
+  pthread_mutex_unlock(&mu);
+
+  pthread_join(p, NULL);
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+
+  if (second != 0)
+    return -5;
+  return 0;
+}
+
+struct timedwait_sibling_args {
+  pthread_mutex_t *mu;
+  pthread_cond_t *cv;
+  long sec_offset;
+  long ns_offset; // must be < 1000000000
+  int result;
+};
+
+void *timedwait_sibling_sleeper(void *arg) {
+  (void)arg;
+  usleep(200000);
+  return NULL;
+}
+
+void *timedwait_sibling_waiter(void *arg) {
+  struct timedwait_sibling_args *a = arg;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct timespec ts = {.tv_sec = tv.tv_sec + a->sec_offset,
+                        .tv_nsec = tv.tv_usec * 1000 + a->ns_offset};
+  if (ts.tv_nsec >= 1000000000) {
+    ts.tv_sec += 1;
+    ts.tv_nsec -= 1000000000;
+  }
+  pthread_mutex_lock(a->mu);
+  a->result = pthread_cond_timedwait(a->cv, a->mu, &ts);
+  pthread_mutex_unlock(a->mu);
+  return NULL;
+}
+
+// Test: when one waiter times out, other waiters on the same cond must
+// still be reachable by a later signal - i.e. a timeout on one thread
+// must not drop sibling waiters from the queue.
+int test_cond_timedwait_sibling_not_dropped() {
+  pthread_mutex_t mu;
+  pthread_cond_t cv;
+  if (pthread_mutex_init(&mu, NULL) != 0)
+    return -1;
+  if (pthread_cond_init(&cv, NULL) != 0)
+    return -2;
+
+  struct timedwait_sibling_args long_args = {&mu, &cv, 3, 0, -999};
+  struct timedwait_sibling_args short_args = {&mu, &cv, 0, 100000000, -999};
+  pthread_t p_long, p_short, p_sleeper;
+  if (pthread_create(&p_long, NULL, timedwait_sibling_waiter, &long_args) != 0)
+    return -3;
+  usleep(20000); // let the long-deadline waiter enter the wait first
+  if (pthread_create(&p_short, NULL, timedwait_sibling_waiter, &short_args) !=
+      0)
+    return -4;
+  // A thread unrelated to the cond var - keeps the scheduler ticking while
+  // the waiters are blocked on Condition, and verifies that sibling fallout
+  // from the timeout doesn't leak to unrelated threads.
+  if (pthread_create(&p_sleeper, NULL, timedwait_sibling_sleeper, NULL) != 0)
+    return -8;
+
+  // Join the short waiter first. This forces the scheduler to actually
+  // process short's timeout before we signal, so the bug path (which
+  // clears the entire waiting queue on timeout) has a chance to fire.
+  pthread_join(p_short, NULL);
+  if (short_args.result != ETIMEDOUT)
+    return -5;
+
+  // Now signal. The long waiter must still be reachable.
+  pthread_mutex_lock(&mu);
+  int res = pthread_cond_signal(&cv);
+  pthread_mutex_unlock(&mu);
+  if (res != 0)
+    return -6;
+
+  pthread_join(p_long, NULL);
+  pthread_join(p_sleeper, NULL);
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+
+  if (long_args.result != 0)
+    return -7;
+  return 0;
+}
+
+// === end pthread_cond_timedwait tests ===
 
 pthread_mutex_t normal_mutex;
 int normal_unlock_res = -1;
@@ -4508,6 +4774,11 @@ struct {
     FUNC_DEF(test_close),
     FUNC_DEF(test_cond_var),
     FUNC_DEF(test_cond_var_static),
+    FUNC_DEF(test_cond_timedwait_signaled_before_timeout),
+    FUNC_DEF(test_cond_timedwait_past_deadline),
+    FUNC_DEF(test_cond_timedwait_broadcast),
+    FUNC_DEF(test_cond_timedwait_flag_not_sticky),
+    FUNC_DEF(test_cond_timedwait_sibling_not_dropped),
     FUNC_DEF(test_pthread_mutex_normal),
     FUNC_DEF(test_pthread_mutex_recursive_trylock),
     FUNC_DEF(test_CFMutableDictionary_NullCallbacks),

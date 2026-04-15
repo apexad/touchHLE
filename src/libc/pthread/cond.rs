@@ -7,13 +7,15 @@
 
 use super::mutex::pthread_mutex_t;
 use crate::dyld::FunctionExports;
-use crate::libc::errno::EINVAL;
+use crate::libc::errno::{EINVAL, ETIMEDOUT};
 use crate::libc::pthread::mutex::pthread_mutex_unlock;
 use crate::mem::{ConstPtr, MutPtr, Ptr, SafeRead};
 use crate::{export_c_func, Environment};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::Duration;
 
 use crate::environment::{MutexId, ThreadBlock, ThreadId};
+use crate::libc::time::timespec;
 
 #[repr(C, packed)]
 pub struct pthread_condattr_t {}
@@ -48,9 +50,10 @@ impl State {
 }
 
 pub struct CondHostObject {
-    waiting: VecDeque<ThreadId>,
+    pub(crate) waiting: VecDeque<ThreadId>,
     pub(crate) waking: VecDeque<ThreadId>,
     pub(crate) curr_mutex: Option<MutexId>,
+    pub(crate) timed_out: HashSet<ThreadId>,
 }
 
 pub fn pthread_cond_init(
@@ -72,6 +75,7 @@ pub fn pthread_cond_init(
             waiting: VecDeque::new(),
             waking: VecDeque::new(),
             curr_mutex: None,
+            timed_out: Default::default(),
         },
     );
     0 // success
@@ -95,6 +99,60 @@ fn check_or_register_cond(env: &mut Environment, cond: MutPtr<pthread_cond_t>) -
     }
 }
 
+fn pthread_cond_timedwait(
+    env: &mut Environment,
+    cond: MutPtr<pthread_cond_t>,
+    mutex: MutPtr<pthread_mutex_t>,
+    abs_time: ConstPtr<timespec>,
+) -> i32 {
+    let time = env.mem.read(abs_time);
+    let deadline = Duration::from_secs(time.tv_sec.try_into().unwrap())
+        + Duration::from_nanos(time.tv_nsec.try_into().unwrap());
+
+    match check_or_register_cond(env, cond) {
+        Ok(_) => {}
+        Err(e) => {
+            return e;
+        }
+    };
+    let res = pthread_mutex_unlock(env, mutex);
+    assert_eq!(res, 0);
+    log_dbg!(
+        "Thread {} is blocking on condition variable {:?} with deadline {:?}",
+        env.current_thread,
+        cond,
+        deadline
+    );
+
+    let current_thread = env.current_thread;
+    let mutex = env.mem.read(mutex).mutex_id;
+    let host_object = State::get_mut(env)
+        .condition_variables
+        .get_mut(&cond)
+        .unwrap();
+    // The mutex used must be the same as the currently waiting mutex, or there
+    // must be no other waiters.
+    assert!(
+        host_object.curr_mutex == Some(mutex)
+            || host_object.waking.is_empty() && host_object.waiting.is_empty()
+    );
+    host_object.curr_mutex = Some(mutex);
+    host_object.waiting.push_back(current_thread);
+
+    env.yield_thread(ThreadBlock::Condition(cond, Some(deadline)));
+
+    let host_object = State::get_mut(env)
+        .condition_variables
+        .get_mut(&cond)
+        .unwrap();
+    if host_object.timed_out.contains(&current_thread) {
+        host_object.timed_out.remove(&current_thread);
+        ETIMEDOUT
+    } else {
+        0 // success
+    }
+}
+
 pub fn pthread_cond_wait(
     env: &mut Environment,
     cond: MutPtr<pthread_cond_t>,
@@ -113,6 +171,7 @@ pub fn pthread_cond_wait(
         env.current_thread,
         cond
     );
+
     let current_thread = env.current_thread;
     let mutex = env.mem.read(mutex).mutex_id;
     let host_object = State::get_mut(env)
@@ -127,7 +186,14 @@ pub fn pthread_cond_wait(
     );
     host_object.curr_mutex = Some(mutex);
     host_object.waiting.push_back(current_thread);
-    env.yield_thread(ThreadBlock::Condition(cond));
+
+    env.yield_thread(ThreadBlock::Condition(cond, None));
+
+    let host_object = State::get_mut(env)
+        .condition_variables
+        .get_mut(&cond)
+        .unwrap();
+    assert!(!host_object.timed_out.contains(&current_thread));
     0 // success
 }
 
@@ -198,6 +264,7 @@ pub fn pthread_cond_destroy(env: &mut Environment, cond: MutPtr<pthread_cond_t>)
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(pthread_cond_init(_, _)),
     export_c_func!(pthread_cond_wait(_, _)),
+    export_c_func!(pthread_cond_timedwait(_, _, _)),
     export_c_func!(pthread_cond_signal(_)),
     export_c_func!(pthread_cond_broadcast(_)),
     export_c_func!(pthread_cond_destroy(_)),

@@ -459,11 +459,11 @@ pub(super) struct timeval {
 unsafe impl SafeRead for timeval {}
 
 #[allow(non_camel_case_types)]
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C, packed)]
 pub struct timespec {
-    tv_sec: time_t,
-    tv_nsec: i32,
+    pub tv_sec: time_t,
+    pub tv_nsec: i32,
 }
 unsafe impl SafeRead for timespec {}
 

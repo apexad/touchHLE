@@ -30,6 +30,7 @@ pub const EROFS: i32 = 30;
 pub const EPROTONOSUPPORT: i32 = 43;
 pub const ENOTSUP: i32 = 45;
 pub const ECONNRESET: i32 = 54;
+pub const ETIMEDOUT: i32 = 60;
 pub const EOVERFLOW: i32 = 84;
 
 #[derive(Default)]
@@ -113,6 +114,7 @@ fn strerror(env: &mut Environment, err_num: i32) -> ConstPtr<u8> {
             EPROTONOSUPPORT => "Protocol not supported",
             ENOTSUP => "Operation not supported",
             ECONNRESET => "Connection reset by peer",
+            ETIMEDOUT => "Operation timed out",
             EOVERFLOW => "Value too large to be stored in data type",
             _ => unimplemented!("strerror({})", err_num),
         };
