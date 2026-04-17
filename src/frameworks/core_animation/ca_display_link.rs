@@ -21,6 +21,7 @@ struct CADisplayLinkHostObject {
     /// so the timer necessarily outlives the display link. After `invalidate`,
     /// this pointer must not be used.
     ns_timer: id,
+    paused: bool,
 }
 impl HostObject for CADisplayLinkHostObject {}
 
@@ -54,6 +55,13 @@ pub const CLASSES: ClassExports = objc_classes! {
     autorelease(env, display_link)
 }
 
+- (bool)isPaused {
+    env.objc.borrow::<CADisplayLinkHostObject>(this).paused
+}
+- (())setPaused:(bool)paused {
+    env.objc.borrow_mut::<CADisplayLinkHostObject>(this).paused = paused;
+}
+
 - (())setFrameInterval:(NSInteger)frameInterval {
     log_dbg!("[(CADisplayLink*){:?} setFrameInterval:{}]", this, frameInterval);
     assert!(frameInterval >= 1);
@@ -85,9 +93,15 @@ pub const CLASSES: ClassExports = objc_classes! {
         target,
         selector,
         ns_timer,
+        paused,
         ..
     } = env.objc.borrow::<CADisplayLinkHostObject>(this);
     assert_eq!(ns_timer, timer);
+    if paused {
+        // This could be improved, as we're still running the timer,
+        // but just not passing the actual call.
+        return;
+    }
     // Signature is `- (void) selector:(CADisplayLink *)sender;`
     () = msg_send(env, (target, selector.unwrap(), this));
 }
