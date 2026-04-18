@@ -8,6 +8,7 @@
 use crate::abi::{extend_stack_for_args, write_next_arg, GuestArg};
 use crate::cpu::Cpu;
 use crate::frameworks::foundation::{NSInteger, NSUInteger};
+use crate::libc::string::strdup;
 use crate::mem::{ConstPtr, MutPtr, MutVoidPtr};
 use crate::msg;
 use crate::objc::{
@@ -24,6 +25,10 @@ struct NSInvocationHostObject {
     arguments: Vec<MutVoidPtr>,
     used_arguments: HashSet<MutVoidPtr>,
     arguments_retained: bool,
+    /// Objects retained by `retainArguments`
+    retained_objects: Vec<id>,
+    /// C string copies made by `retainArguments`
+    copied_strings: Vec<MutPtr<u8>>,
 }
 impl HostObject for NSInvocationHostObject {}
 
@@ -43,6 +48,8 @@ pub const CLASSES: ClassExports = objc_classes! {
         arguments: vec![MutPtr::null(); num_of_args as usize],
         used_arguments: HashSet::new(),
         arguments_retained: false,
+        retained_objects: Vec::new(),
+        copied_strings: Vec::new(),
     });
     let res = env.objc.alloc_object(this, host_object, &mut env.mem);
     autorelease(env, res)
@@ -64,10 +71,48 @@ pub const CLASSES: ClassExports = objc_classes! {
 }
 
 - (())retainArguments {
-    let target = env.objc.borrow_mut::<NSInvocationHostObject>(this).target;
+    // TODO: handle return val
+    // TODO: copy blocks
+    assert!(!env.objc.borrow::<NSInvocationHostObject>(this).arguments_retained); // TODO
+
+    let target = env.objc.borrow::<NSInvocationHostObject>(this).target;
     retain(env, target);
-    // TODO retain all args and copy C Strings
-    env.objc.borrow_mut::<NSInvocationHostObject>(this).arguments_retained = true;
+
+    // TODO: move to init?
+    let arg_count = env.objc.borrow::<NSInvocationHostObject>(this).arguments.len();
+    let mut arg_types: Vec<String> = Vec::new();
+    for i in 0..arg_count as u32 {
+        let sig = env.objc.borrow::<NSInvocationHostObject>(this).sig;
+        let type_ptr: ConstPtr<u8> = msg![env; sig getArgumentTypeAtIndex:i];
+        arg_types.push(env.mem.cstr_at_utf8(type_ptr).unwrap().to_string());
+    }
+
+    let mut retained_objects: Vec<id> = Vec::new();
+    let mut copied_strings: Vec<MutPtr<u8>> = Vec::new();
+
+    // Skip index 0 (self) and 1 (SEL): handled via target/selector fields.
+    for (i, arg_type) in arg_types.iter().enumerate().skip(2) {
+        let arg_loc = env.objc.borrow::<NSInvocationHostObject>(this).arguments[i];
+        match arg_type.as_str() {
+            "@" => {
+                let obj: id = env.mem.read(arg_loc.cast().cast_const());
+                retain(env, obj);
+                retained_objects.push(obj);
+            }
+            "*" => {
+                let str: MutPtr<u8> = env.mem.read(arg_loc.cast().cast_const());
+                let str_copy = strdup(env, str.cast_const());
+                env.mem.write(arg_loc.cast(), str_copy);
+                copied_strings.push(str_copy);
+            }
+            _ => {}
+        }
+    }
+
+    let host = env.objc.borrow_mut::<NSInvocationHostObject>(this);
+    host.retained_objects = retained_objects;
+    host.copied_strings = copied_strings;
+    host.arguments_retained = true;
 }
 
 - (())setArgument:(MutVoidPtr)arg_loc
@@ -158,6 +203,7 @@ pub const CLASSES: ClassExports = objc_classes! {
             // TODO: generalize pointer handling
             "^v" => <MutVoidPtr as GuestArg>::REG_COUNT,
             "c" => <u8 as GuestArg>::REG_COUNT,
+            "*" => <MutPtr<u8> as GuestArg>::REG_COUNT,
             _ => unimplemented!("reg_count for {arg_type}")
         }
     }
@@ -244,6 +290,21 @@ pub const CLASSES: ClassExports = objc_classes! {
     release(env, sig);
     if arguments_retained {
         release(env, target);
+        let retained_objects = std::mem::take(
+            &mut env.objc.borrow_mut::<NSInvocationHostObject>(this).retained_objects
+        );
+        for obj in retained_objects {
+            release(env, obj);
+        }
+        let copied_strings = std::mem::take(
+            &mut env.objc.borrow_mut::<NSInvocationHostObject>(this).copied_strings
+        );
+        for s in copied_strings {
+            env.mem.free(s.cast());
+        }
+    } else {
+        assert!(env.objc.borrow::<NSInvocationHostObject>(this).retained_objects.is_empty());
+        assert!(env.objc.borrow::<NSInvocationHostObject>(this).copied_strings.is_empty());
     }
     for ptr in &env.objc.borrow::<NSInvocationHostObject>(this).used_arguments {
         env.mem.free(ptr.cast());

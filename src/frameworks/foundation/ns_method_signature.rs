@@ -106,7 +106,7 @@ fn parse_signature_inner(env: &mut Environment, curr: ConstPtr<u8>) -> (GuestUSi
             let (scanned, read, size) = parse_signature_inner(env, curr + 1);
             (scanned + 1, read + 1, size)
         }
-        b'v' | b'@' | b':' | b'f' | b'c' => {
+        b'v' | b'@' | b':' | b'f' | b'c' | b'*' => {
             idx += 1;
             let mut size = 0;
             while let cc @ b'0'..=b'9' = env.mem.read(curr + idx) {

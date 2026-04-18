@@ -4439,9 +4439,11 @@ int test_strftime() {
 @interface InvocationTarget : NSObject {
 @public
   id receivedValue;
+  const char *cstringValue;
 }
 - (void)storeValue:(id)value;
 - (void)clearValue;
+- (void)storeCString:(const char *)str;
 @end
 
 @implementation InvocationTarget
@@ -4450,6 +4452,21 @@ int test_strftime() {
 }
 - (void)clearValue {
   receivedValue = nil;
+}
+- (void)storeCString:(const char *)str {
+  cstringValue = str;
+}
+@end
+
+static BOOL g_deallocTrackerDidDealloc = NO;
+
+@interface DeallocTracker : NSObject
+@end
+
+@implementation DeallocTracker
+- (void)dealloc {
+  g_deallocTrackerDidDealloc = YES;
+  [super dealloc];
 }
 @end
 
@@ -4561,21 +4578,95 @@ int test_NSInvocation_invokeWithTarget() {
 int test_NSInvocation_retainArguments() {
   NSAutoreleasePool *pool = [NSAutoreleasePool new];
 
-  InvocationTarget *target = [InvocationTarget new];
-  NSMethodSignature *sig = [NSMethodSignature signatureWithObjCTypes:"v8@0:4"];
-  NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+  // Test 1: object argument is retained by the invocation.
+  {
+    InvocationTarget *target = [InvocationTarget new];
+    NSMethodSignature *sig =
+        [NSMethodSignature signatureWithObjCTypes:"v12@0:4@8"];
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:target];
+    SEL sel =
+        NSSelectorFromString([NSString stringWithUTF8String:"storeValue:"]);
+    [inv setSelector:sel];
 
-  [inv setTarget:target];
-  SEL sel = NSSelectorFromString([NSString stringWithUTF8String:"clearValue"]);
-  [inv setSelector:sel];
+    NSObject *val = [[NSObject alloc] init]; // retainCount = 1
+    NSUInteger before = [val retainCount];
+    [inv setArgument:&val atIndex:2];
+    [inv retainArguments]; // invocation must retain val
+    if ([val retainCount] != before + 1) {
+      [pool drain];
+      return -1;
+    }
+    // Invoke still works; val is alive because the invocation holds it.
+    [inv invoke];
+    if (target->receivedValue != val) {
+      [pool drain];
+      return -2;
+    }
+    [val release]; // balance our alloc; invocation still holds one ref
+  }
 
-  // retainArguments should not crash
-  [inv retainArguments];
-  [inv invoke];
+  // Test 2: C string argument is copied so the invocation owns the bytes.
+  {
+    InvocationTarget *target = [InvocationTarget new];
+    // "v12@0:4*8" = void, self(@), _cmd(:), const char *(*)
+    NSMethodSignature *sig =
+        [NSMethodSignature signatureWithObjCTypes:"v12@0:4*8"];
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:target];
+    SEL sel =
+        NSSelectorFromString([NSString stringWithUTF8String:"storeCString:"]);
+    [inv setSelector:sel];
 
-  if (target->receivedValue != nil) {
-    [pool drain];
-    return -1;
+    char buf[16];
+    strcpy(buf, "hello");
+    const char *ptr = buf;
+    [inv setArgument:&ptr atIndex:2];
+    [inv retainArguments]; // must copy "hello" into invocation-owned memory
+
+    // Overwrite original buffer; invocation must pass its copy, not buf.
+    strcpy(buf, "world");
+
+    [inv invoke];
+    if (strcmp(target->cstringValue, "hello") != 0) {
+      [pool drain];
+      return -3;
+    }
+  }
+
+  // Test 3: invocation keeps @ arg alive after caller drops its reference.
+  {
+    InvocationTarget *target = [InvocationTarget new];
+    NSMethodSignature *sig =
+        [NSMethodSignature signatureWithObjCTypes:"v12@0:4@8"];
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:target];
+    SEL sel =
+        NSSelectorFromString([NSString stringWithUTF8String:"storeValue:"]);
+    [inv setSelector:sel];
+
+    g_deallocTrackerDidDealloc = NO;
+    DeallocTracker *val = [[DeallocTracker alloc] init];
+    DeallocTracker *weakVal = val; // un-retained alias
+    [inv setArgument:&val atIndex:2];
+    [inv retainArguments]; // invocation owns its own reference now
+    [val release];         // caller drops its reference
+    val = nil;
+
+    // Without the invocation's retain, val would now be deallocated.
+    if (g_deallocTrackerDidDealloc) {
+      [pool drain];
+      return -4;
+    }
+    [inv invoke];
+    if (target->receivedValue != weakVal) {
+      [pool drain];
+      return -5;
+    }
+    if (g_deallocTrackerDidDealloc) {
+      [pool drain];
+      return -6;
+    }
   }
 
   [pool drain];
