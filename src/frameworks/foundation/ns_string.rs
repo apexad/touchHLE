@@ -28,13 +28,12 @@ use crate::objc::{
     HostObject, NSZonePtr, ObjC,
 };
 use crate::{fs, Environment};
-use encoding_rs::SHIFT_JIS;
+use encoding_rs::{SHIFT_JIS, WINDOWS_1252};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::Write;
 use std::iter::Peekable;
 use std::string::FromUtf16Error;
-use yore::code_pages::CP1252;
 
 pub type NSStringEncoding = NSUInteger;
 pub const NSASCIIStringEncoding: NSUInteger = 1;
@@ -122,9 +121,10 @@ impl StringHostObject {
                 StringHostObject::Utf8(Cow::Owned(string))
             }
             NSWindowsCP1252StringEncoding => {
-                // TODO: use encoding_rs
-                let string = CP1252.decode(&bytes).to_string();
-                StringHostObject::Utf8(Cow::Owned(string))
+                let (cow, encoding_used, had_errors) = WINDOWS_1252.decode(&bytes);
+                assert_eq!(encoding_used, WINDOWS_1252);
+                assert!(!had_errors);
+                StringHostObject::Utf8(Cow::Owned(cow.into_owned()))
             }
             NSShiftJISStringEncoding => {
                 let (cow, encoding_used, had_errors) = SHIFT_JIS.decode(&bytes);
