@@ -202,6 +202,7 @@ pub const CLASSES: ClassExports = objc_classes! {
             "f" => <f32 as GuestArg>::REG_COUNT,
             // TODO: generalize pointer handling
             "^v" => <MutVoidPtr as GuestArg>::REG_COUNT,
+            "^i" => <MutPtr<i32> as GuestArg>::REG_COUNT,
             "c" => <u8 as GuestArg>::REG_COUNT,
             "*" => <MutPtr<u8> as GuestArg>::REG_COUNT,
             _ => unimplemented!("reg_count for {arg_type}")

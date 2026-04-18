@@ -4440,10 +4440,12 @@ int test_strftime() {
 @public
   id receivedValue;
   const char *cstringValue;
+  int intValue;
 }
 - (void)storeValue:(id)value;
 - (void)clearValue;
 - (void)storeCString:(const char *)str;
+- (void)storeIntPtr:(int *)ptr;
 @end
 
 @implementation InvocationTarget
@@ -4455,6 +4457,9 @@ int test_strftime() {
 }
 - (void)storeCString:(const char *)str {
   cstringValue = str;
+}
+- (void)storeIntPtr:(int *)ptr {
+  intValue = *ptr;
 }
 @end
 
@@ -4515,6 +4520,22 @@ int test_NSMethodSignature() {
   if (strcmp([sig2 methodReturnType], "v") != 0) {
     [pool drain];
     return -7;
+  }
+
+  // "v12@0:4^i8" = void return, 3 args: self(@), _cmd(:), pointer-to-int(^i)
+  NSMethodSignature *sig3 =
+      [NSMethodSignature signatureWithObjCTypes:"v12@0:4^i8"];
+  if ([sig3 numberOfArguments] != 3) {
+    [pool drain];
+    return -8;
+  }
+  if (strcmp([sig3 methodReturnType], "v") != 0) {
+    [pool drain];
+    return -9;
+  }
+  if (strcmp([sig3 getArgumentTypeAtIndex:2], "^i") != 0) {
+    [pool drain];
+    return -10;
   }
 
   [pool drain];
@@ -4667,6 +4688,34 @@ int test_NSInvocation_retainArguments() {
       [pool drain];
       return -6;
     }
+  }
+
+  [pool drain];
+  return 0;
+}
+
+int test_NSInvocation_pointer() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  InvocationTarget *target = [InvocationTarget new];
+  // "v12@0:4^i8" = void, self(@), _cmd(:), int *(^i)
+  NSMethodSignature *sig =
+      [NSMethodSignature signatureWithObjCTypes:"v12@0:4^i8"];
+  NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+
+  [inv setTarget:target];
+  SEL sel =
+      NSSelectorFromString([NSString stringWithUTF8String:"storeIntPtr:"]);
+  [inv setSelector:sel];
+
+  int x = 42;
+  int *ptr = &x;
+  [inv setArgument:&ptr atIndex:2];
+  [inv invoke];
+
+  if (target->intValue != 42) {
+    [pool drain];
+    return -1;
   }
 
   [pool drain];
@@ -5091,6 +5140,7 @@ struct {
     FUNC_DEF(test_NSInvocation),
     FUNC_DEF(test_NSInvocation_invokeWithTarget),
     FUNC_DEF(test_NSInvocation_retainArguments),
+    FUNC_DEF(test_NSInvocation_pointer),
 };
 // clang-format on
 
