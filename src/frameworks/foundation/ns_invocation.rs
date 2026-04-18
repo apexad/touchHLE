@@ -200,11 +200,10 @@ pub const CLASSES: ClassExports = objc_classes! {
             "@" => <id as GuestArg>::REG_COUNT,
             ":" => <SEL as GuestArg>::REG_COUNT,
             "f" => <f32 as GuestArg>::REG_COUNT,
-            // TODO: generalize pointer handling
-            "^v" => <MutVoidPtr as GuestArg>::REG_COUNT,
-            "^i" => <MutPtr<i32> as GuestArg>::REG_COUNT,
             "c" => <u8 as GuestArg>::REG_COUNT,
             "*" => <MutPtr<u8> as GuestArg>::REG_COUNT,
+            // pointer cases
+            _ if arg_type.starts_with('^') => <MutVoidPtr as GuestArg>::REG_COUNT,
             _ => unimplemented!("reg_count for {arg_type}")
         }
     }
@@ -249,18 +248,6 @@ pub const CLASSES: ClassExports = objc_classes! {
                 let regs = env.cpu.regs_mut();
                 write_next_arg::<f32>(&mut reg_offset, regs, &mut env.mem, arg_val);
             },
-            "^v" => {
-                let arg: ConstPtr<MutVoidPtr> = arguments[i].cast().cast_const();
-                let arg_val = env.mem.read(arg);
-                let regs = env.cpu.regs_mut();
-                write_next_arg::<MutVoidPtr>(&mut reg_offset, regs, &mut env.mem, arg_val);
-            }
-            "^i" => {
-                let arg: ConstPtr<MutPtr<i32>> = arguments[i].cast().cast_const();
-                let arg_val = env.mem.read(arg);
-                let regs = env.cpu.regs_mut();
-                write_next_arg::<MutPtr<i32>>(&mut reg_offset, regs, &mut env.mem, arg_val);
-            }
             "c" => {
                 let arg: ConstPtr<u8> = arguments[i].cast().cast_const();
                 let arg_val = env.mem.read(arg);
@@ -272,6 +259,13 @@ pub const CLASSES: ClassExports = objc_classes! {
                 let arg_val = env.mem.read(arg);
                 let regs = env.cpu.regs_mut();
                 write_next_arg::<MutPtr<u8>>(&mut reg_offset, regs, &mut env.mem, arg_val);
+            }
+            // pointer cases
+            _ if arg_type.starts_with('^') => {
+                let arg: ConstPtr<MutVoidPtr> = arguments[i].cast().cast_const();
+                let arg_val = env.mem.read(arg);
+                let regs = env.cpu.regs_mut();
+                write_next_arg::<MutVoidPtr>(&mut reg_offset, regs, &mut env.mem, arg_val);
             }
             _ => unimplemented!("write_next_arg for {arg_type}")
         }
