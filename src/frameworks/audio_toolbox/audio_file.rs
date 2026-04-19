@@ -49,7 +49,7 @@ unsafe impl SafeRead for AudioFilePacketTableInfo {}
 
 #[allow(dead_code)]
 const kAudioFileFileNotFoundError: OSStatus = -43;
-const kAudioFileBadPropertySizeError: OSStatus = fourcc(b"!siz") as _;
+pub const kAudioFileBadPropertySizeError: OSStatus = fourcc(b"!siz") as _;
 const kAudioFileUnsupportedPropertyError: OSStatus = fourcc(b"pty?") as _;
 const kAudioFileUnsupportedFileTypeError: OSStatus = fourcc(b"typ?") as _;
 const kAudioFileUnspecifiedError: OSStatus = fourcc(b"wht?") as _;
@@ -224,7 +224,7 @@ pub fn AudioFileOpenWithCallbacks(
     0 // success
 }
 
-fn property_size(property_id: AudioFilePropertyID) -> GuestUSize {
+pub(super) fn property_size(property_id: AudioFilePropertyID) -> GuestUSize {
     match property_id {
         kAudioFilePropertyDataFormat => guest_size_of::<AudioStreamBasicDescription>(),
         kAudioFilePropertyAudioDataByteCount => guest_size_of::<u64>(),
@@ -331,7 +331,7 @@ pub fn AudioFileGetProperty(
     0 // success
 }
 
-fn AudioFileReadBytes(
+pub fn AudioFileReadBytes(
     env: &mut Environment,
     in_audio_file: AudioFileID,
     _in_use_cache: bool,
