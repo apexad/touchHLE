@@ -336,13 +336,16 @@ const SEEK_SET: i32 = posix_io::SEEK_SET;
 const SEEK_CUR: i32 = posix_io::SEEK_CUR;
 const SEEK_END: i32 = posix_io::SEEK_END;
 fn fseek(env: &mut Environment, file_ptr: MutPtr<FILE>, offset: i32, whence: i32) -> i32 {
+    fseeko(env, file_ptr, offset.into(), whence)
+}
+fn fseeko(env: &mut Environment, file_ptr: MutPtr<FILE>, offset: off_t, whence: i32) -> i32 {
     // TODO: handle errno properly
     set_errno(env, 0);
 
     let FILE { fd } = env.mem.read(file_ptr);
 
     assert!([SEEK_SET, SEEK_CUR, SEEK_END].contains(&whence));
-    match posix_io::lseek(env, fd, offset.into(), whence) {
+    match posix_io::lseek(env, fd, offset, whence) {
         -1 => -1,
         _cur_pos => {
             let FILEHostObject { ref mut pushbacks } = env
@@ -356,16 +359,15 @@ fn fseek(env: &mut Environment, file_ptr: MutPtr<FILE>, offset: i32, whence: i32
 }
 
 fn ftell(env: &mut Environment, file_ptr: MutPtr<FILE>) -> i32 {
+    // TODO: What's the correct behaviour if the position is beyond 2GiB?
+    ftello(env, file_ptr).try_into().unwrap()
+}
+fn ftello(env: &mut Environment, file_ptr: MutPtr<FILE>) -> off_t {
     // TODO: handle errno properly
     set_errno(env, 0);
 
     let FILE { fd } = env.mem.read(file_ptr);
-
-    match posix_io::lseek(env, fd, 0, posix_io::SEEK_CUR) {
-        -1 => -1,
-        // TODO: What's the correct behaviour if the position is beyond 2GiB?
-        cur_pos => cur_pos.try_into().unwrap(),
-    }
+    posix_io::lseek(env, fd, 0, posix_io::SEEK_CUR)
 }
 
 fn rewind(env: &mut Environment, file_ptr: MutPtr<FILE>) {
@@ -583,7 +585,9 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(putc(_, _)),
     export_c_func!(fwrite(_, _, _, _)),
     export_c_func!(fseek(_, _, _)),
+    export_c_func!(fseeko(_, _, _)),
     export_c_func!(ftell(_)),
+    export_c_func!(ftello(_)),
     export_c_func!(rewind(_)),
     export_c_func!(fsetpos(_, _)),
     export_c_func!(fgetpos(_, _)),
