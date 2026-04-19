@@ -20,7 +20,8 @@ pub(super) type CFLocaleRef = CFTypeRef;
 type CFLocaleKey = CFStringRef;
 
 pub const kCFLocaleCountryCode: &str = "kCFLocaleCountryCodeKey";
-pub const kCFLocaleLanguageCode: &str = "kCFLocaleLanguageCode";
+pub const kCFLocaleLanguageCode: &str = "kCFLocaleLanguageCodeKey";
+pub const kCFLocaleIdentifier: &str = "kCFLocaleIdentifierKey";
 
 pub const CONSTANTS: ConstantExports = &[
     (
@@ -30,6 +31,10 @@ pub const CONSTANTS: ConstantExports = &[
     (
         "_kCFLocaleLanguageCode",
         HostConstant::NSString(kCFLocaleLanguageCode),
+    ),
+    (
+        "_kCFLocaleIdentifier",
+        HostConstant::NSString(kCFLocaleIdentifier),
     ),
 ];
 
