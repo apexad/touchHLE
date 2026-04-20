@@ -1507,17 +1507,12 @@ impl Environment {
                             svc,
                         ) {
                             f.call_from_guest(self);
-                            if svc & dyld::Dyld::SVC_LAZY_LINK_RET_FLAG == 0 {
-                                if let Some(len) = self.options.zero_stack_after_guest_to_host_call
-                                {
-                                    log_once!(
-                                        "Applying zeroing of stack after guest to host call."
-                                    );
-                                    let start = self.cpu.regs()[cpu::Cpu::SP] - len;
-                                    self.mem
-                                        .bytes_at_mut(mem::Ptr::from_bits(start), len)
-                                        .fill(0);
-                                }
+                            if let Some(len) = self.options.zero_stack_after_guest_to_host_call {
+                                log_once!("Applying zeroing of stack after guest to host call.");
+                                let start = self.cpu.regs()[cpu::Cpu::SP] - len;
+                                self.mem
+                                    .bytes_at_mut(mem::Ptr::from_bits(start), len)
+                                    .fill(0);
                             }
                             // On entry_size 4 return here since there's
                             // no space to add a ret after the svc call
