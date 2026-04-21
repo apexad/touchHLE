@@ -137,6 +137,23 @@ fn normalize_key(env: &mut Environment, key: id) -> String {
     key.to_string()
 }
 
+pub fn set_value_to_encode_for_current_key(env: &mut Environment, archiver: id, value: Value) {
+    assert_eq!(
+        env.objc
+            .borrow::<NSKeyedArchiverHostObject>(archiver)
+            .encoded_data,
+        nil
+    );
+    let host_object = env.objc.borrow_mut::<NSKeyedArchiverHostObject>(archiver);
+    let current_key_idx = host_object.current_key.unwrap().get() as usize;
+    host_object
+        .plist
+        .get_mut("$objects")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()[current_key_idx] = value;
+}
+
 pub fn get_value_to_encode_for_current_key(env: &mut Environment, archiver: id) -> &mut Dictionary {
     assert_eq!(
         env.objc
@@ -220,7 +237,11 @@ pub fn encode_object(env: &mut Environment, archiver: id, object: id) -> Uid {
                 .current_key
                 .replace(new_uid);
             let class: id = msg![env; object class];
-            encode_object_for_key(env, archiver, class, "$class".into());
+            // TODO: it seems that NSString class itself is _not_ encoded??
+            let str_class = env.objc.get_known_class("NSString", &mut env.mem);
+            if !env.objc.class_is_subclass_of(class, str_class) {
+                encode_object_for_key(env, archiver, class, "$class".into());
+            }
             () = msg![env; object encodeWithCoder:archiver];
             env.objc
                 .borrow_mut::<NSKeyedArchiverHostObject>(archiver)

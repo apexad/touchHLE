@@ -10,13 +10,14 @@
 
 mod path_algorithms;
 
-use super::{ns_array, unichar, NSInteger, _nib_archive_decoder};
+use super::{ns_array, unichar, NSInteger, _nib_archive_decoder, ns_keyed_unarchiver};
 use super::{
     NSComparisonResult, NSNotFound, NSOrderedAscending, NSOrderedDescending, NSOrderedSame,
     NSRange, NSUInteger,
 };
 use crate::abi::VaList;
 use crate::frameworks::core_graphics::{CGFloat, CGPoint, CGRect, CGSize};
+use crate::frameworks::foundation::ns_keyed_archiver::set_value_to_encode_for_current_key;
 use crate::frameworks::uikit::ui_font::{
     self, UILineBreakMode, UILineBreakModeWordWrap, UITextAlignment, UITextAlignmentLeft,
 };
@@ -1280,14 +1281,25 @@ pub const CLASSES: ClassExports = objc_classes! {
 // NSCoding implementation
 - (id)initWithCoder:(id)coder {
     let class: Class = msg![env; coder class];
+    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
     let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
-    let new_str = if env.objc.class_is_subclass_of(class, nib_archive_class) {
+    let new_str = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
+        ns_keyed_unarchiver::decode_current_string(env, coder)
+    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
         _nib_archive_decoder::decode_current_string(env, coder)
     } else {
         unimplemented!();
     };
     release(env, this);
     new_str
+}
+- (())encodeWithCoder:(id)coder {
+    let string = to_rust_string(env, this);
+    assert!(string.as_bytes().iter().all(|byte| byte.is_ascii())); // TODO
+
+    // TODO: use some kind of substitution instead?
+    // See "Making Substitutions During Coding" in the doc https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Archiving/Articles/codingobjects.html
+    set_value_to_encode_for_current_key(env, coder, plist::Value::String(string.to_string()));
 }
 
 - (id)initWithData:(id)data // NSData *
