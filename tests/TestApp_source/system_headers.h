@@ -70,6 +70,15 @@ static inline NSRange NSMakeRange(NSUInteger loc, NSUInteger len) {
 + (instancetype)arrayWithObjects:(ObjectType)firstObj, ...;
 - (NSUInteger)count;
 - (ObjectType)objectAtIndex:(NSUInteger)index;
+- (BOOL)isEqualToArray:(NSArray *)otherArray;
+@end
+
+@interface NSDictionary<KeyType, ObjectType> : NSObject
++ (instancetype)dictionaryWithObjects:(NSArray<ObjectType> *)objects
+                              forKeys:(NSArray<KeyType> *)keys;
+- (NSUInteger)count;
+- (ObjectType)objectForKey:(KeyType)aKey;
+- (BOOL)isEqualToDictionary:(NSDictionary *)otherDictionary;
 @end
 
 @interface NSSet<ObjectType> : NSObject

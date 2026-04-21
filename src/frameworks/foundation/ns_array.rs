@@ -209,6 +209,40 @@ pub const CLASSES: ClassExports = objc_classes! {
     autorelease(env, array_imm)
 }
 
+- (NSUInteger)hash {
+    // TODO: define better hash
+    msg![env; this count]
+}
+- (bool)isEqual:(id)other {
+    if this == other {
+        return true;
+    }
+    let class: Class = msg_class![env; NSArray class];
+    if !msg![env; other isKindOfClass:class] {
+        return false;
+    }
+    msg![env; this isEqualToArray:other]
+}
+- (bool)isEqualToArray:(id)other { // NSArray *
+    if other == nil {
+        return false;
+    }
+    let count: NSUInteger = msg![env; this count];
+    let other_count: NSUInteger = msg![env; other count];
+    if count != other_count {
+        return false;
+    }
+    for i in 0..count {
+        let curr_object: id = msg![env; this objectAtIndex:i];
+        let curr_other_object: id = msg![env; other objectAtIndex:i];
+        let equal: bool = msg![env; curr_object isEqual:curr_other_object];
+        if !equal {
+            return false;
+        }
+    }
+    true
+}
+
 @end
 
 // NSMutableArray is an abstract class. A subclass must provide everything

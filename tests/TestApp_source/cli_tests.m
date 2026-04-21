@@ -4876,6 +4876,73 @@ int test_NSKeyedArchiver_NSKeyedUnarchiver() {
   return 0;
 }
 
+int test_NSKeyedArchiver_NSDictionary_of_NSArray_of_NSStrings() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  NSArray *fruits =
+      [NSArray arrayWithObjects:[NSString stringWithUTF8String:"apple"],
+                                [NSString stringWithUTF8String:"banana"],
+                                [NSString stringWithUTF8String:"cherry"], nil];
+  NSArray *colors =
+      [NSArray arrayWithObjects:[NSString stringWithUTF8String:"red"],
+                                [NSString stringWithUTF8String:"green"],
+                                [NSString stringWithUTF8String:"blue"], nil];
+  NSArray *values = [NSArray arrayWithObjects:fruits, colors, nil];
+  NSArray *keys =
+      [NSArray arrayWithObjects:[NSString stringWithUTF8String:"fruits"],
+                                [NSString stringWithUTF8String:"colors"], nil];
+  NSDictionary *dict = [NSDictionary dictionaryWithObjects:values forKeys:keys];
+
+  NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:dict];
+  NSDictionary *unarchivedDict =
+      [NSKeyedUnarchiver unarchiveObjectWithData:archivedData];
+
+  if (![unarchivedDict isKindOfClass:[NSDictionary class]]) {
+    [pool drain];
+    return -1;
+  }
+  if ([unarchivedDict count] != [dict count]) {
+    [pool drain];
+    return -2;
+  }
+  if (![unarchivedDict isEqualToDictionary:dict]) {
+    [pool drain];
+    return -3;
+  }
+
+  NSArray *unarchivedFruits =
+      [unarchivedDict objectForKey:[NSString stringWithUTF8String:"fruits"]];
+  if (![unarchivedFruits isKindOfClass:[NSArray class]]) {
+    [pool drain];
+    return -4;
+  }
+  if (![unarchivedFruits isEqualToArray:fruits]) {
+    [pool drain];
+    return -5;
+  }
+
+  NSArray *unarchivedColors =
+      [unarchivedDict objectForKey:[NSString stringWithUTF8String:"colors"]];
+  if (![unarchivedColors isKindOfClass:[NSArray class]]) {
+    [pool drain];
+    return -6;
+  }
+  if (![unarchivedColors isEqualToArray:colors]) {
+    [pool drain];
+    return -7;
+  }
+
+  for (NSUInteger i = 0; i < [unarchivedFruits count]; i++) {
+    if (![[unarchivedFruits objectAtIndex:i] isKindOfClass:[NSString class]]) {
+      [pool drain];
+      return -8;
+    }
+  }
+
+  [pool drain];
+  return 0;
+}
+
 int test_NSNumber_stringValue() {
   NSAutoreleasePool *pool = [NSAutoreleasePool new];
 
@@ -5216,6 +5283,7 @@ struct {
     FUNC_DEF(test_RespondsToSelector),
     FUNC_DEF(test_NSKeyedArchiver_encodeIntForKey),
     FUNC_DEF(test_NSKeyedArchiver_NSKeyedUnarchiver),
+    FUNC_DEF(test_NSKeyedArchiver_NSDictionary_of_NSArray_of_NSStrings),
     FUNC_DEF(test_AutoreleasePool),
     FUNC_DEF(test_NSNumber_stringValue),
     FUNC_DEF(test_NSMethodSignature),

@@ -479,6 +479,43 @@ pub const CLASSES: ClassExports = objc_classes! {
     msg![env; this objectForKey:key]
 }
 
+- (NSUInteger)hash {
+    // TODO: define better hash
+    msg![env; this count]
+}
+- (bool)isEqual:(id)other {
+    if this == other {
+        return true;
+    }
+    let class: Class = msg_class![env; NSDictionary class];
+    if !msg![env; other isKindOfClass:class] {
+        return false;
+    }
+    msg![env; this isEqualToDictionary:other]
+}
+- (bool)isEqualToDictionary:(id)other { // NSDictionary *
+    if other == nil {
+        return false;
+    }
+    let count: NSUInteger = msg![env; this count];
+    let other_count: NSUInteger = msg![env; other count];
+    if count != other_count {
+        return false;
+    }
+    let keys_arr = msg![env; this allKeys];
+    let keys_count: NSUInteger = msg![env; keys_arr count];
+    for i in 0..keys_count {
+        let key: id = msg![env; keys_arr objectAtIndex:i];
+        let value: id = msg![env; this objectForKey:key];
+        let other_value: id = msg![env; other objectForKey:key];
+        let equal: bool = msg![env; value isEqual:other_value];
+        if !equal {
+            return false;
+        }
+    }
+    true
+}
+
 // NSDictionary(NSFileAttributes) category
 // TODO: implement categories properly
 - (id)fileModificationDate {
