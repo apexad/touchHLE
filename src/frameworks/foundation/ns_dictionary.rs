@@ -640,6 +640,14 @@ pub const CLASSES: ClassExports = objc_classes! {
     mut_dict
 }
 
+// NSCoding implementation
+- (id)initWithCoder:(id)coder {
+    init_with_coder_inner(env, this, coder)
+}
+- (())encodeWithCoder:(id)coder {
+    encode_with_coder_inner(env, this, coder)
+}
+
 - (id)description {
     build_description(env, this)
 }
@@ -681,52 +689,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 // NSCoding implementation
 - (id)initWithCoder:(id)coder {
-    let class: Class = msg![env; coder class];
-    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
-    let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
-    let tuples = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
-        // It seems that every NSDictionary item in an NSKeyedArchiver plist
-        // looks like:
-        // {
-        //   "$class" => (uid of NSDictionary class goes here),
-        //   "NS.keys" => [
-        //     // keys here
-        //   ]
-        //   "NS.objects" => [
-        //     // objects here
-        //   ]
-        // }
-        ns_keyed_unarchiver::decode_current_dict(env, coder)
-    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
-        _nib_archive_decoder::decode_current_dict(env, coder)
-    } else {
-        unimplemented!()
-    };
-
-    release(env, this);
-    let dict = dict_from_keys_and_objects(env, &tuples);
-
-    let mut_dict = msg![env; dict mutableCopy];
-    release(env, dict);
-    mut_dict
+    init_with_coder_inner(env, this, coder)
 }
 - (())encodeWithCoder:(id)coder {
-    let host_obj: DictionaryHostObject = std::mem::take(env.objc.borrow_mut(this));
-    let mut encoded_keys = vec![];
-    let mut encoded_vals = vec![];
-    for (k, _) in host_obj.map.values().flatten() {
-        let kk = encode_object(env, coder, *k);
-        encoded_keys.push(plist::Value::Uid(kk));
-    }
-    for (_, v) in host_obj.map.values().flatten() {
-        let vv = encode_object(env, coder, *v);
-        encoded_vals.push(plist::Value::Uid(vv));
-    }
-    *env.objc.borrow_mut(this) = host_obj;
-
-    let scope = get_value_to_encode_for_current_key(env, coder);
-    scope.insert("NS.keys".to_string(), plist::Value::Array(encoded_keys));
-    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
+    encode_with_coder_inner(env, this, coder)
 }
 
 - (id)initWithObjects:(id)objects //NSArray *
@@ -1015,4 +981,55 @@ fn build_description(env: &mut Environment, dict: id) -> id {
     let desc_imm = msg![env; desc copy];
     release(env, desc);
     autorelease(env, desc_imm)
+}
+
+fn init_with_coder_inner(env: &mut Environment, dict: id, coder: id) -> id {
+    let class: Class = msg![env; coder class];
+    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
+    let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
+    // It seems that every NSDictionary item in an NSKeyedArchiver plist looks
+    // like:
+    // {
+    //   "$class" => (uid of NSDictionary class goes here),
+    //   "NS.keys" => [
+    //     // keys here
+    //   ]
+    //   "NS.objects" => [
+    //     // objects here
+    //   ]
+    // }
+    let tuples = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
+        ns_keyed_unarchiver::decode_current_dict(env, coder)
+    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
+        _nib_archive_decoder::decode_current_dict(env, coder)
+    } else {
+        unimplemented!()
+    };
+
+    let mut host_obj: DictionaryHostObject = std::mem::take(env.objc.borrow_mut(dict));
+    assert!(host_obj.map.is_empty());
+    for (key, val) in tuples {
+        host_obj.insert(env, key, val, /* copy_key: */ true);
+    }
+    *env.objc.borrow_mut(dict) = host_obj;
+    dict
+}
+
+fn encode_with_coder_inner(env: &mut Environment, dict: id, coder: id) {
+    let host_obj: DictionaryHostObject = std::mem::take(env.objc.borrow_mut(dict));
+    let mut encoded_keys = vec![];
+    let mut encoded_vals = vec![];
+    for (k, _) in host_obj.map.values().flatten() {
+        let kk = encode_object(env, coder, *k);
+        encoded_keys.push(plist::Value::Uid(kk));
+    }
+    for (_, v) in host_obj.map.values().flatten() {
+        let vv = encode_object(env, coder, *v);
+        encoded_vals.push(plist::Value::Uid(vv));
+    }
+    *env.objc.borrow_mut(dict) = host_obj;
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert("NS.keys".to_string(), plist::Value::Array(encoded_keys));
+    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
 }
