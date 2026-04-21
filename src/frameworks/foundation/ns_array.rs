@@ -322,45 +322,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 // NSCoding implementation
 - (id)initWithCoder:(id)coder {
-    let class: Class = msg![env; coder class];
-    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
-    let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
-    let objects = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
-    // It seems that every NSArray item in an NSKeyedArchiver plist looks like:
-    // {
-    //   "$class" => (uid of NSArray class goes here),
-    //   "NS.objects" => [
-    //     // objects here
-    //   ]
-    // }
-    // Presumably we need to call a `decodeFooBarForKey:` method on the NSCoder
-    // here, passing in an NSString for "NS.objects". There is no method for
-    // arrays though (maybe it's `decodeObjectForKey:`), and in any case
-    // allocating an NSString here would be inconvenient, so let's just take a
-    // shortcut.
-        ns_keyed_unarchiver::decode_current_array(env, coder)
-    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
-        _nib_archive_decoder::decode_current_array(env, coder)
-    } else {
-        unimplemented!()
-    };
-
-    let host_object: &mut ArrayHostObject = env.objc.borrow_mut(this);
-    assert!(host_object.array.is_empty());
-    host_object.array = objects; // objects are already retained
-    this
+    init_with_coder_inner(env, this, coder)
 }
 - (())encodeWithCoder:(id)coder {
-    let host_obj: ArrayHostObject = std::mem::take(env.objc.borrow_mut(this));
-    let mut encoded_vals = vec![];
-    for v in &host_obj.array {
-        let vv = encode_object(env, coder, *v);
-        encoded_vals.push(plist::Value::Uid(vv));
-    }
-    *env.objc.borrow_mut(this) = host_obj;
-
-    let scope = get_value_to_encode_for_current_key(env, coder);
-    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
+    encode_with_coder_inner(env, this, coder)
 }
 
 - (id)initWithArray:(id)array { // NSArray*
@@ -534,34 +499,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 // NSCoding implementation
 - (id)initWithCoder:(id)coder {
-    let class: Class = msg![env; coder class];
-    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
-    let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
-
-    let objects = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
-        ns_keyed_unarchiver::decode_current_array(env, coder)
-    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
-        _nib_archive_decoder::decode_current_array(env, coder)
-    } else {
-        unimplemented!()
-    };
-
-    let host_object: &mut ArrayHostObject = env.objc.borrow_mut(this);
-    assert!(host_object.array.is_empty());
-    host_object.array = objects; // objects are already retained
-    this
+    init_with_coder_inner(env, this, coder)
 }
 - (())encodeWithCoder:(id)coder {
-    let host_obj: ArrayHostObject = std::mem::take(env.objc.borrow_mut(this));
-    let mut encoded_vals = vec![];
-    for v in &host_obj.array {
-        let vv = encode_object(env, coder, *v);
-        encoded_vals.push(plist::Value::Uid(vv));
-    }
-    *env.objc.borrow_mut(this) = host_obj;
-
-    let scope = get_value_to_encode_for_current_key(env, coder);
-    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
+    encode_with_coder_inner(env, this, coder)
 }
 
 // NSCopying implementation
@@ -844,4 +785,48 @@ fn mutable_copy_inner(env: &mut Environment, arr: id) -> id {
     }
     env.objc.borrow_mut::<ArrayHostObject>(mut_arr).array = array;
     mut_arr
+}
+
+fn init_with_coder_inner(env: &mut Environment, arr: id, coder: id) -> id {
+    let class: Class = msg![env; coder class];
+    let keyed_unarch_class: Class = msg_class![env; NSKeyedUnarchiver class];
+    let nib_archive_class: Class = msg_class![env; _touchHLE_NIBArchiveDecoder class];
+    // It seems that every NSArray item in an NSKeyedArchiver plist looks like:
+    // {
+    //   "$class" => (uid of NSArray class goes here),
+    //   "NS.objects" => [
+    //     // objects here
+    //   ]
+    // }
+    // Presumably we need to call a `decodeFooBarForKey:` method on the NSCoder
+    // here, passing in an NSString for "NS.objects". There is no method for
+    // arrays though (maybe it's `decodeObjectForKey:`), and in any case
+    // allocating an NSString here would be inconvenient, so let's just take a
+    // shortcut.
+    let objects = if env.objc.class_is_subclass_of(class, keyed_unarch_class) {
+        ns_keyed_unarchiver::decode_current_array(env, coder)
+    } else if env.objc.class_is_subclass_of(class, nib_archive_class) {
+        _nib_archive_decoder::decode_current_array(env, coder)
+    } else {
+        unimplemented!()
+    };
+
+    let host_object: &mut ArrayHostObject = env.objc.borrow_mut(arr);
+    assert!(host_object.array.is_empty());
+    host_object.array = objects; // objects are already retained
+    arr
+}
+
+fn encode_with_coder_inner(env: &mut Environment, arr: id, coder: id) {
+    let host_obj: ArrayHostObject = std::mem::take(env.objc.borrow_mut(arr));
+    let mut encoded_vals = vec![];
+    for v in &host_obj.array {
+        // TODO: support other type of coders, not only NSKeyedArchiver
+        let vv = encode_object(env, coder, *v);
+        encoded_vals.push(plist::Value::Uid(vv));
+    }
+    *env.objc.borrow_mut(arr) = host_obj;
+
+    let scope = get_value_to_encode_for_current_key(env, coder);
+    scope.insert("NS.objects".to_string(), plist::Value::Array(encoded_vals));
 }
