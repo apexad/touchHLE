@@ -7,7 +7,7 @@
 
 use super::ns_string::{from_rust_ordering, from_rust_string};
 use super::{
-    NSComparisonResult, NSOrderedSame, NSUInteger, _nib_archive_decoder, ns_keyed_unarchiver,
+    _nib_archive_decoder, ns_keyed_unarchiver, NSComparisonResult, NSOrderedSame, NSUInteger,
 };
 use crate::frameworks::core_foundation::cf_number::{
     kCFNumberCharType, kCFNumberFloat32Type, kCFNumberFloatType, kCFNumberIntType,

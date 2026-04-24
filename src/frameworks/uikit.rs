@@ -101,12 +101,8 @@ pub fn handle_events(env: &mut Environment) -> Option<Instant> {
     use crate::window::Event;
     use crate::window::TextInputEvent;
 
-    loop {
-        // NSRunLoop will never call this function in headless mode.
-        let Some(event) = env.window_mut().pop_event() else {
-            break;
-        };
-
+    // NSRunLoop will never call this function in headless mode.
+    while let Some(event) = env.window_mut().pop_event() {
         match event {
             Event::Quit => {
                 echo!("User requested quit, exiting.");

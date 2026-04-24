@@ -10,7 +10,7 @@
 
 mod path_algorithms;
 
-use super::{ns_array, unichar, NSInteger, _nib_archive_decoder, ns_keyed_unarchiver};
+use super::{_nib_archive_decoder, ns_array, ns_keyed_unarchiver, unichar, NSInteger};
 use super::{
     NSComparisonResult, NSNotFound, NSOrderedAscending, NSOrderedDescending, NSOrderedSame,
     NSRange, NSUInteger,

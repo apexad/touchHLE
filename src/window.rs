@@ -521,11 +521,9 @@ impl Window {
                 }
                 E::MouseMotion {
                     x, y, mousestate, ..
-                } => {
-                    if mousestate.right() {
-                        let (x, y) = transform_virt_accel_coords(self, (x, y));
-                        self.virtual_accelerometer_last = Some((x, y, true));
-                    }
+                } if mousestate.right() => {
+                    let (x, y) = transform_virt_accel_coords(self, (x, y));
+                    self.virtual_accelerometer_last = Some((x, y, true));
                 }
                 E::MouseButtonUp {
                     x,

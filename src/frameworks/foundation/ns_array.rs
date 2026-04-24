@@ -10,8 +10,8 @@ use super::ns_property_list_serialization::{
     deserialize_plist_from_file, NSPropertyListBinaryFormat_v1_0,
 };
 use super::{
-    ns_keyed_unarchiver, ns_string, ns_url, NSComparisonResult, NSNotFound, NSRange, NSUInteger,
-    _nib_archive_decoder,
+    _nib_archive_decoder, ns_keyed_unarchiver, ns_string, ns_url, NSComparisonResult, NSNotFound,
+    NSRange, NSUInteger,
 };
 use crate::abi::{CallFromHost, GuestFunction};
 use crate::frameworks::foundation::ns_keyed_archiver::{

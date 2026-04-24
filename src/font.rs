@@ -198,10 +198,7 @@ impl Font {
                 WrapMode::Word => {
                     let mut word_start = 0;
 
-                    loop {
-                        let Some(i) = line[word_start..].find(|c: char| c.is_whitespace()) else {
-                            break;
-                        };
+                    while let Some(i) = line[word_start..].find(|c: char| c.is_whitespace()) {
                         let word_end = word_start + i;
                         // Include any additional whitespace in the word,
                         // so that the next word begins with non-whitespace.
