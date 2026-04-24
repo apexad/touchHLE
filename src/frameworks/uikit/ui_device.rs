@@ -9,7 +9,7 @@ use crate::dyld::ConstantExports;
 use crate::dyld::HostConstant;
 use crate::frameworks::foundation::{ns_string, NSInteger};
 use crate::objc::{id, msg, objc_classes, todo_objc_setter, ClassExports, TrivialHostObject};
-use crate::window::{get_battery_status, BatteryState, DeviceOrientation};
+use crate::window::{get_battery_status, BatteryState, DeviceFamily, DeviceOrientation};
 
 pub const UIDeviceOrientationDidChangeNotification: &str =
     "UIDeviceOrientationDidChangeNotification";
@@ -32,6 +32,12 @@ pub const UIDeviceBatteryStateUnknown: UIDeviceBatteryState = 0;
 pub const UIDeviceBatteryStateUnplugged: UIDeviceBatteryState = 1;
 pub const UIDeviceBatteryStateCharging: UIDeviceBatteryState = 2;
 pub const UIDeviceBatteryStateFull: UIDeviceBatteryState = 3;
+
+type UIUserInterfaceIdiom = NSInteger;
+#[allow(dead_code)]
+const UIUserInterfaceIdiomUnspecified: UIUserInterfaceIdiom = -1;
+const UIUserInterfaceIdiomPhone: UIUserInterfaceIdiom = 0;
+const UIUserInterfaceIdiomPad: UIUserInterfaceIdiom = 1;
 
 #[derive(Default)]
 pub struct State {
@@ -140,6 +146,13 @@ pub const CLASSES: ClassExports = objc_classes! {
         BatteryState::OnBattery => UIDeviceBatteryStateUnplugged,
         BatteryState::NoBattery | BatteryState::Charging => UIDeviceBatteryStateCharging,
         BatteryState::Full => UIDeviceBatteryStateFull,
+    }
+}
+
+- (UIUserInterfaceIdiom)userInterfaceIdiom {
+    match env.window().device_family() {
+        DeviceFamily::iPhone => UIUserInterfaceIdiomPhone,
+        DeviceFamily::iPad => UIUserInterfaceIdiomPad,
     }
 }
 
