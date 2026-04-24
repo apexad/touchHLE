@@ -10,14 +10,15 @@
 
 mod path_algorithms;
 
-use super::{_nib_archive_decoder, ns_array, ns_keyed_unarchiver, unichar, NSInteger};
+use super::ns_keyed_archiver::set_value_to_encode_for_current_key;
+use super::{ns_array, ns_keyed_unarchiver};
 use super::{
-    NSComparisonResult, NSNotFound, NSOrderedAscending, NSOrderedDescending, NSOrderedSame,
-    NSRange, NSUInteger,
+    unichar, NSComparisonResult, NSInteger, NSNotFound, NSOrderedAscending, NSOrderedDescending,
+    NSOrderedSame, NSRange, NSUInteger,
 };
 use crate::abi::VaList;
 use crate::frameworks::core_graphics::{CGFloat, CGPoint, CGRect, CGSize};
-use crate::frameworks::foundation::ns_keyed_archiver::set_value_to_encode_for_current_key;
+use crate::frameworks::foundation::_nib_archive_decoder;
 use crate::frameworks::uikit::ui_font::{
     self, UILineBreakMode, UILineBreakModeWordWrap, UITextAlignment, UITextAlignmentLeft,
 };
