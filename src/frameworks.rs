@@ -42,6 +42,7 @@ pub mod uikit;
 /// Container for state of various child modules
 #[derive(Default)]
 pub struct State {
+    avfoundation: avfoundation::State,
     audio_toolbox: audio_toolbox::State,
     core_animation: core_animation::State,
     foundation: foundation::State,
