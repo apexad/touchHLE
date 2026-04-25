@@ -164,7 +164,7 @@ fn alcGetString(
     env.mem.alloc_and_write_cstr(s.to_bytes()).cast_const()
 }
 
-const ALLOWED_CONTEXT_ATTRIBUTES: [ALCint; 5] = [
+const STANDARD_CONTEXT_ATTRIBUTES: [ALCint; 5] = [
     ALC_FREQUENCY,
     ALC_REFRESH,
     ALC_SYNC,
@@ -189,7 +189,14 @@ fn alcCreateContext(
                 attr,
                 env.mem.read(ptr + 1)
             );
-            assert!(ALLOWED_CONTEXT_ATTRIBUTES.contains(&attr)); // TODO
+            if !STANDARD_CONTEXT_ATTRIBUTES.contains(&attr) {
+                // TODO: strip the attribute instead of passing through?
+                log!(
+                    "Warning: alcCreateContext requested non-standard attribute: {:#x} => {}",
+                    attr,
+                    env.mem.read(ptr + 1)
+                );
+            }
             ptr += 2;
         }
 
