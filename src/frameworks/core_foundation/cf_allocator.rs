@@ -5,9 +5,7 @@
  */
 //! `CFAllocator`.
 //!
-//! Only kCFAllocatorDefault and kCFAllocatorSystemDefault allocators are
-//! currently supported. Both are essentially the same thing for us for now,
-//! but the default one is an alias for NULL.
+//! Only a small subset of allocators is currently supported.
 
 use crate::dyld::{ConstantExports, HostConstant};
 use crate::mem::{ConstPtr, Ptr, SafeRead};
@@ -30,6 +28,7 @@ impl CFAllocatorHostObject {
 enum CFAllocatorType {
     /// For us, same as Default one, but not a NULL ptr.
     SystemDefault = 1,
+    Null = 2,
 }
 
 pub type CFAllocatorRef = ConstPtr<CFAllocatorHostObject>;
@@ -44,6 +43,15 @@ pub const CONSTANTS: ConstantExports = &[
             let allocator_ptr = env
                 .mem
                 .alloc_and_write(CFAllocatorHostObject(CFAllocatorType::SystemDefault));
+            env.mem.alloc_and_write(allocator_ptr).cast().cast_const()
+        }),
+    ),
+    (
+        "_kCFAllocatorNull",
+        HostConstant::Custom(|env| {
+            let allocator_ptr = env
+                .mem
+                .alloc_and_write(CFAllocatorHostObject(CFAllocatorType::Null));
             env.mem.alloc_and_write(allocator_ptr).cast().cast_const()
         }),
     ),
