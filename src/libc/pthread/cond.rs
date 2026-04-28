@@ -234,7 +234,7 @@ pub fn pthread_cond_broadcast(env: &mut Environment, cond: MutPtr<pthread_cond_t
         }
     };
     log_dbg!(
-        "Thread {} unblocks one thread waiting on condition variable {:?}",
+        "Thread {} unblocks all threads waiting on condition variable {:?}",
         env.current_thread,
         cond
     );
