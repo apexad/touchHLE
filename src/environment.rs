@@ -838,7 +838,11 @@ impl Environment {
         self.cpu.dump_regs();
         for (tid, thread) in self.threads.iter().enumerate() {
             if thread.active && tid != self.current_thread {
-                echo_no_panic!("Dumping registers for thread #{}", tid);
+                echo_no_panic!(
+                    "Dumping registers for thread #{} (blocked by {:?})",
+                    tid,
+                    thread.blocked_by
+                );
                 let Some(ctx) = thread.guest_context.as_ref() else {
                     echo_no_panic!("Could not get registers for thread {}!", tid);
                     return;
