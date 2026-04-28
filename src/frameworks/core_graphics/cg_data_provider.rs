@@ -124,9 +124,8 @@ fn CGDataProviderCreateSequential(
     let version = callbacks.version;
     assert_eq!(version, 0);
 
+    // TODO: use rewind callback
     let get_bytes_callback = callbacks.get_bytes;
-    let rewind_callback = callbacks.rewind;
-    assert!(rewind_callback.to_ptr().is_null()); // TODO
     let release_info = callbacks.release_info;
 
     // We are reading all data at once in chunks
