@@ -124,6 +124,7 @@ type AudioQueuePropertyListenerProc = GuestFunction;
 const kAudioQueueErr_InvalidBuffer: OSStatus = -66687;
 const kAudioQueueErr_InvalidPropertySize: OSStatus = -66683;
 const kAudioQueueErr_BufferInQueue: OSStatus = -66679;
+const kAudioQueueErr_CannotStart: OSStatus = -66681;
 
 pub fn AudioQueueNewOutput(
     env: &mut Environment,
@@ -654,14 +655,14 @@ pub fn decode_buffer(
 
 /// Ensure an audio queue has an OpenAL source and at least one queued OpenAL
 /// buffer.
-fn prime_audio_queue(env: &mut Environment, in_aq: AudioQueueRef) {
+fn prime_audio_queue(env: &mut Environment, in_aq: AudioQueueRef) -> Result<(), ()> {
     let (state, context) =
         State::get_with_context(&mut env.framework_state, &mut env.openal_manager);
 
     let host_object = state.audio_queues.get_mut(&in_aq).unwrap();
 
     if !is_supported_audio_format(&host_object.format) {
-        return;
+        return Err(());
     }
 
     if host_object.al_source.is_none() {
@@ -737,6 +738,7 @@ fn prime_audio_queue(env: &mut Environment, in_aq: AudioQueueRef) {
         unsafe { context.SourceQueueBuffers(al_source, 1, &next_al_buffer) };
         assert!(unsafe { context.GetError() } == 0);
     }
+    Ok(())
 }
 
 fn unqueue_buffers<F: FnMut(ALuint)>(al_source: ALuint, context: &OpenAL<'_>, mut callback: F) {
@@ -816,7 +818,7 @@ pub fn handle_audio_queue(env: &mut Environment, in_aq: AudioQueueRef) {
 
     // Push new buffers etc.
 
-    prime_audio_queue(env, in_aq);
+    _ = prime_audio_queue(env, in_aq);
 
     let context = env
         .framework_state
@@ -872,9 +874,16 @@ fn AudioQueuePrime(
 ) -> OSStatus {
     return_if_null!(in_aq);
 
-    assert!(out_number_of_frames_prepared.is_null()); // TODO
-    prime_audio_queue(env, in_aq);
-    0 // success
+    match prime_audio_queue(env, in_aq) {
+        Ok(_) => {
+            assert!(out_number_of_frames_prepared.is_null()); // TODO
+            0 // success
+        }
+        Err(_) => {
+            log!("Warning: Cannot prime audio queue!");
+            kAudioQueueErr_CannotStart
+        }
+    }
 }
 
 fn notify_aq_is_running(env: &mut Environment, in_aq: AudioQueueRef) {
@@ -903,7 +912,7 @@ pub fn AudioQueueStart(
 
     assert!(in_device_start_time.is_null()); // TODO
 
-    prime_audio_queue(env, in_aq);
+    _ = prime_audio_queue(env, in_aq);
 
     let (state, context) =
         State::get_with_context(&mut env.framework_state, &mut env.openal_manager);
