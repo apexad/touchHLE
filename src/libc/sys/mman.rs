@@ -4,13 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::abi::DotDotDot;
 use crate::dyld::FunctionExports;
 use crate::environment::Environment;
 use crate::export_c_func;
 use crate::libc::errno::{set_errno, EINVAL, ENOTSUP};
 use crate::libc::posix_io;
 use crate::libc::posix_io::{off_t, FileDescriptor, SEEK_SET};
-use crate::mem::{GuestUSize, MutVoidPtr, PAGE_SIZE_ALIGN_MASK};
+use crate::mem::{ConstPtr, GuestUSize, MutVoidPtr, PAGE_SIZE_ALIGN_MASK};
 use std::collections::HashMap;
 
 #[allow(dead_code)]
@@ -103,8 +104,20 @@ fn madvise(env: &mut Environment, addr: MutVoidPtr, len: GuestUSize, advice: i32
     -1
 }
 
+fn shm_open(env: &mut Environment, name: ConstPtr<u8>, oflag: i32, _dots: DotDotDot) -> i32 {
+    log!(
+        "TODO: shm_open({:?} '{:?}', {}, ...) -> -1",
+        name,
+        env.mem.cstr_at_utf8(name),
+        oflag
+    );
+    set_errno(env, EINVAL);
+    -1
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(mmap(_, _, _, _, _, _)),
     export_c_func!(munmap(_, _)),
     export_c_func!(madvise(_, _, _)),
+    export_c_func!(shm_open(_, _, _)),
 ];
