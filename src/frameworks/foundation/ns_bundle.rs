@@ -141,6 +141,11 @@ pub const CLASSES: ClassExports = objc_classes! {
     let exec_path = from_rust_string(env, exec_path_str);
     autorelease(env, exec_path)
 }
+- (id)executableURL {
+    // TODO: cache result
+    let exec_path: id = msg![env; this executablePath];
+    msg_class![env; NSURL fileURLWithPath:exec_path]
+}
 
 - (id)pathForResource:(id)name // NSString*
                ofType:(id)extension // NSString*
