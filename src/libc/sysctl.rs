@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::dyld::{export_c_func, FunctionExports};
-use crate::libc::errno::set_errno;
+use crate::libc::errno::{set_errno, ENOENT};
 use crate::mem::{guest_size_of, ConstPtr, GuestUSize, MutPtr, MutVoidPtr, PAGE_SIZE};
 use crate::Environment;
 
@@ -23,7 +23,11 @@ const KERN_OSRELEASE: i32 = 2;
 const KERN_OSREV: i32 = 3;
 const KERN_VERSION: i32 = 4;
 const KERN_HOSTNAME: i32 = 10;
+const KERN_PROC: i32 = 14;
 const KERN_OSVERSION: i32 = 65;
+
+// KERN_PROC
+const KERN_PROC_ALL: i32 = 0;
 
 // CTL_HW
 const HW_MACHINE: i32 = 1;
@@ -41,12 +45,13 @@ const HW_MEMSIZE: i32 = 24;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum SysCtlNamePath {
     Length2(i32, i32),
+    Length4(i32, i32, i32, i32),
 }
 
 // Clippy complains about the type.
 // Below values corresponds to the original iPhone.
 // Reference https://www.mail-archive.com/misc@openbsd.org/msg80988.html
-static SYSCTL_VALUES: [(SysCtlNamePath, &str, SysInfoType); 17] = [
+static SYSCTL_VALUES: [(SysCtlNamePath, &str, SysInfoType); 18] = [
     // Generic CPU, I/O
     (SysCtlNamePath::Length2(CTL_HW, HW_MACHINE), "hw.machine", SysInfoType::String(b"iPhone1,1")),
     (SysCtlNamePath::Length2(CTL_HW, HW_MODEL), "hw.model", SysInfoType::String(b"M68AP")),
@@ -67,6 +72,8 @@ static SYSCTL_VALUES: [(SysCtlNamePath, &str, SysInfoType); 17] = [
     (SysCtlNamePath::Length2(CTL_KERN, KERN_HOSTNAME), "kern.hostname", SysInfoType::String(b"touchHLE")), // this is arbitrary
     (SysCtlNamePath::Length2(CTL_KERN, KERN_VERSION), "kern.version", SysInfoType::String(b"Darwin Kernel Version 10.0.0d3: Wed May 13 22:11:58 PDT 2009; root:xnu-1357.2.89~4/RELEASE_ARM_S5L8900X")),
     (SysCtlNamePath::Length2(CTL_KERN, KERN_OSVERSION), "kern.osversion", SysInfoType::String(b"7A341")),
+    // Last 0 here is an unnamed placeholder
+    (SysCtlNamePath::Length4(CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0), "kern.proc.all", SysInfoType::Struct),
 ];
 
 static STRING_MAP: LazyLock<HashMap<&str, SysInfoType>> = LazyLock::new(|| {
@@ -93,6 +100,7 @@ enum SysInfoType {
     String(&'static [u8]),
     Int32(i32),
     Int64(i64),
+    Struct,
 }
 
 fn sysctl(
@@ -124,6 +132,50 @@ fn sysctl(
                     let Some(val) = INT_MAP.get(&SysCtlNamePath::Length2(name0, name1)).cloned()
                     else {
                         unimplemented!("Unknown sysctl parameter ({name0}, {name1})!")
+                    };
+                    val
+                },
+                oldp,
+                oldlenp,
+                newp,
+                newlen,
+            )
+        }
+        4 => {
+            let (name0, name1, name2, name3) = (
+                env.mem.read(name),
+                env.mem.read(name + 1),
+                env.mem.read(name + 2),
+                env.mem.read(name + 3),
+            );
+            if SysCtlNamePath::Length4(name0, name1, name2, name3)
+                == SysCtlNamePath::Length4(CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0)
+            {
+                // In some Unity games, mono initialization set-ups perf
+                // counters, which set-ups a shared memory area, which gets
+                // a list of all processes via sysctl() if shm_open() fails.
+                // (See mono's [mono-perfcounters.c](https://github.com/mono/mono/blob/62121afbb28f0b62f100ec9a942d10c5e0f4814f/mono/metadata/mono-perfcounters.c#L392)
+                // and [mono-mmap.c](https://github.com/mono/mono/blob/0f53e9e151d92944cacab3e24ac359410c606df6/mono/utils/mono-mmap.c#L555))
+                // Stubbing that sysctl() call doesn't seem to have any impact
+                // on the games' functionality.
+                //
+                // ...but wait, why would perf counters need a shared memory
+                // area in the first place? This is left as an exercise for
+                // the reader.
+                set_errno(env, ENOENT);
+                log!("TODO: sysctl() for 'kern.proc.all', returning -1");
+                return -1;
+            }
+            sysctl_generic(
+                env,
+                |_| {
+                    let Some(val) = INT_MAP
+                        .get(&SysCtlNamePath::Length4(name0, name1, name2, name3))
+                        .cloned()
+                    else {
+                        unimplemented!(
+                            "Unknown sysctl parameter ({name0}, {name1}, {name2}, {name3})!"
+                        )
                     };
                     val
                 },
@@ -193,6 +245,7 @@ where
         SysInfoType::String(str) => str.len() as GuestUSize + 1,
         SysInfoType::Int32(_) => guest_size_of::<i32>(),
         SysInfoType::Int64(_) => guest_size_of::<i64>(),
+        _ => unimplemented!(),
     };
     if oldp.is_null() {
         env.mem.write(oldlenp, len);
@@ -218,6 +271,7 @@ where
         SysInfoType::Int64(num) => {
             env.mem.write(oldp.cast(), num);
         }
+        _ => unimplemented!(),
     }
     env.mem.write(oldlenp, len);
     0 // success
