@@ -44,6 +44,7 @@ const HW_MEMSIZE: i32 = 24;
 /// integers, up to 12 max", but this enum would do for now.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum SysCtlNamePath {
+    Undefined,
     Length2(i32, i32),
     Length4(i32, i32, i32, i32),
 }
@@ -56,9 +57,8 @@ static SYSCTL_VALUES: [(SysCtlNamePath, &str, SysInfoType); 18] = [
     (SysCtlNamePath::Length2(CTL_HW, HW_MACHINE), "hw.machine", SysInfoType::String(b"iPhone1,1")),
     (SysCtlNamePath::Length2(CTL_HW, HW_MODEL), "hw.model", SysInfoType::String(b"M68AP")),
     (SysCtlNamePath::Length2(CTL_HW, HW_NCPU), "hw.ncpu", SysInfoType::Int32(1)),
-    // TODO: there is no integer name path for those?
-    (SysCtlNamePath::Length2(0, 0), "hw.cputype", SysInfoType::Int32(12)),
-    (SysCtlNamePath::Length2(0, 0), "hw.cpusubtype", SysInfoType::Int32(6)),
+    (SysCtlNamePath::Undefined, "hw.cputype", SysInfoType::Int32(12)),
+    (SysCtlNamePath::Undefined, "hw.cpusubtype", SysInfoType::Int32(6)),
     (SysCtlNamePath::Length2(CTL_HW, HW_CPU_FREQ), "hw.cpufrequency", SysInfoType::Int64(412000000)),
     (SysCtlNamePath::Length2(CTL_HW, HW_BUS_FREQ), "hw.busfrequency", SysInfoType::Int64(103000000)),
     (SysCtlNamePath::Length2(CTL_HW, HW_PHYSMEM), "hw.physmem", SysInfoType::Int32(121634816)),
@@ -90,6 +90,10 @@ static INT_MAP: LazyLock<HashMap<SysCtlNamePath, (&str, SysInfoType)>> = LazyLoc
     // Can't use from_iter because the closure erases the lifetime
     let mut hashmap = HashMap::new();
     for (ints, str, value) in SYSCTL_VALUES.iter() {
+        if *ints == SysCtlNamePath::Undefined {
+            // skip entries which do not have integer name paths
+            continue;
+        }
         hashmap.insert(*ints, (*str, value.clone()));
     }
     hashmap
