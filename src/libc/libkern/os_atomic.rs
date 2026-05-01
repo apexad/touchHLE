@@ -59,6 +59,15 @@ fn OSAtomicCompareAndSwap32Barrier(
     }
 }
 
+fn OSAtomicCompareAndSwapPtr(
+    env: &mut Environment,
+    old_value: MutVoidPtr,
+    new_value: MutVoidPtr,
+    the_value: MutPtr<MutVoidPtr>,
+) -> bool {
+    OSAtomicCompareAndSwapPtrBarrier(env, old_value, new_value, the_value)
+}
+
 fn OSAtomicCompareAndSwapPtrBarrier(
     env: &mut Environment,
     old_value: MutVoidPtr,
@@ -83,6 +92,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(OSAtomicCompareAndSwap32(_, _, _)),
     export_c_func!(OSAtomicCompareAndSwapIntBarrier(_, _, _)),
     export_c_func!(OSAtomicCompareAndSwap32Barrier(_, _, _)),
+    export_c_func!(OSAtomicCompareAndSwapPtr(_, _, _)),
     export_c_func!(OSAtomicCompareAndSwapPtrBarrier(_, _, _)),
     export_c_func!(OSMemoryBarrier()),
 ];
