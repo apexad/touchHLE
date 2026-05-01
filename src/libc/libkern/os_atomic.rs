@@ -73,6 +73,10 @@ fn OSAtomicCompareAndSwapPtrBarrier(
     }
 }
 
+fn OSMemoryBarrier(_env: &mut Environment) {
+    // no-op
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(OSAtomicAdd32(_, _)),
     export_c_func!(OSAtomicAdd32Barrier(_, _)),
@@ -80,4 +84,5 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(OSAtomicCompareAndSwapIntBarrier(_, _, _)),
     export_c_func!(OSAtomicCompareAndSwap32Barrier(_, _, _)),
     export_c_func!(OSAtomicCompareAndSwapPtrBarrier(_, _, _)),
+    export_c_func!(OSMemoryBarrier()),
 ];
