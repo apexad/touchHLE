@@ -741,6 +741,12 @@ fn strftime(
                 let formatted_seconds = format!("{:02}", seconds);
                 res.extend_from_slice(formatted_seconds.as_bytes());
             }
+            b'Z' => {
+                assert!(time_val.tm_zone.is_null()); // TODO
+
+                // TODO: return the current timezone
+                res.extend_from_slice(b"GMT");
+            }
             _ => unimplemented!(
                 "Format character '{}'. Formatted up to index {}",
                 specifier as char,
