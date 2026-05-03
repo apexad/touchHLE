@@ -76,7 +76,9 @@ pub const CLASSES: ClassExports = objc_classes! {
 - (())dealloc {
     let &UIViewControllerHostObject { view, nib_name, bundle } = env.objc.borrow(this);
 
-    set_view_controller(env, view, nil);
+    if view != nil {
+        set_view_controller(env, view, nil);
+    }
     release(env, view);
     release(env, nib_name);
     release(env, bundle);
