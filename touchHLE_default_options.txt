@@ -218,3 +218,6 @@ com.ea.pandyinc: --landscape-left --button-to-touch=DPadLeft,50,230 --button-to-
 
 # Samurai: Way of the warrior
 com.madfingergames.Samurai: --force-composition
+
+# NEX
+com.StarByte.NEX: --landscape-left --force-composition
