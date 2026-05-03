@@ -215,3 +215,6 @@ com.activision.callofduty: --x-tilt-offset=-10 --dpad-to-touch=30,215,80,80 --st
 # Pandemonium
 # DPad/Stick = Move, Up = Switch Character, X = Fargus Attack, A = Fire, B = Jump, LeftShoulder = Switch Camera, Start = Pause
 com.ea.pandyinc: --landscape-left --button-to-touch=DPadLeft,50,230 --button-to-touch=DPadRight,160,230 --button-to-touch=DPadDown,110,290 --button-to-touch=X,295,295 --button-to-touch=A,360,280 --button-to-touch=B,450,255 --button-to-touch=Start,445,15 --button-to-touch=LeftShoulder,15,15 --button-to-touch=DPadUp,240,40
+
+# Samurai: Way of the warrior
+com.madfingergames.Samurai: --force-composition
