@@ -28,6 +28,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::libc::pthread::cond::pthread_cond_t;
+use crate::libc::stdio::FILE;
 use crate::window::DeviceFamily;
 use corosensei::{Coroutine, Yielder};
 pub use mutex::{MutexId, MutexType, PTHREAD_MUTEX_DEFAULT};
@@ -150,6 +151,8 @@ pub enum ThreadBlock {
     // (boxed to avoid cyclic dependency), which would be restored upon
     // resuming.
     Suspended(usize, Box<ThreadBlock>),
+    // Thread is waiting on a FILE object lock.
+    FileObjectLock(MutPtr<FILE>),
 }
 
 struct BinaryDependencyNode {
@@ -1735,6 +1738,18 @@ impl Environment {
                     ThreadBlock::WaitingForDebugger(_) => unreachable!(),
                     ThreadBlock::Suspended(cnt, _) => {
                         assert!(cnt > 0);
+                    }
+                    ThreadBlock::FileObjectLock(file_ptr) => {
+                        // TODO: fairness
+                        let acquired = self.libc_state.stdio.try_acquire_file_object_lock(
+                            &mut self.mem,
+                            file_ptr,
+                            thread_id,
+                        );
+                        if acquired {
+                            self.threads[thread_id].blocked_by = ThreadBlock::NotBlocked;
+                            return thread_id;
+                        }
                     }
                 }
             }

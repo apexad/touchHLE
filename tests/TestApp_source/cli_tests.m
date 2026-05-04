@@ -2488,6 +2488,272 @@ int test_fwrite() {
   return 0;
 }
 
+// === flockfile / funlockfile tests ===
+
+int test_flockfile_basic() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  flockfile(file);
+  funlockfile(file);
+
+  fclose(file);
+  return 0;
+}
+
+// flockfile is required to be recursive: the same thread may acquire the
+// lock multiple times and must release it the same number of times.
+int test_flockfile_recursive() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  flockfile(file);
+  flockfile(file);
+  flockfile(file);
+  funlockfile(file);
+  funlockfile(file);
+  funlockfile(file);
+
+  // After unlocking the matching number of times, the stream must be
+  // available again, so ftrylockfile must succeed.
+  if (ftrylockfile(file) != 0) {
+    fclose(file);
+    return -2;
+  }
+  funlockfile(file);
+
+  fclose(file);
+  return 0;
+}
+
+int test_ftrylockfile_unlocked() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  if (ftrylockfile(file) != 0) {
+    fclose(file);
+    return -2;
+  }
+  funlockfile(file);
+
+  fclose(file);
+  return 0;
+}
+
+struct ftrylockfile_args {
+  FILE *file;
+  int result;
+};
+
+void *ftrylockfile_other_thread(void *arg) {
+  struct ftrylockfile_args *a = arg;
+  a->result = ftrylockfile(a->file);
+  // If we somehow obtained the lock (we shouldn't), release it so the
+  // main thread is not left blocked.
+  if (a->result == 0)
+    funlockfile(a->file);
+  return NULL;
+}
+
+// When a stream is locked by one thread, ftrylockfile from another thread
+// must fail (return non-zero).
+int test_ftrylockfile_locked_by_other_thread() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  flockfile(file);
+
+  struct ftrylockfile_args args = {file, -1};
+  pthread_t p;
+  if (pthread_create(&p, NULL, ftrylockfile_other_thread, &args) != 0) {
+    funlockfile(file);
+    fclose(file);
+    return -2;
+  }
+  if (pthread_join(p, NULL) != 0) {
+    funlockfile(file);
+    fclose(file);
+    return -3;
+  }
+
+  funlockfile(file);
+  fclose(file);
+
+  if (args.result == 0)
+    return -4;
+  return 0;
+}
+
+struct flockfile_blocking_args {
+  FILE *file;
+  pthread_mutex_t *mu;
+  pthread_cond_t *cv;
+  int *started;
+  int *acquired;
+};
+
+void *flockfile_blocking_thread(void *arg) {
+  struct flockfile_blocking_args *a = arg;
+
+  // Announce that we are about to attempt flockfile, so the main thread
+  // does not have to rely on a sleep to know we have made progress.
+  pthread_mutex_lock(a->mu);
+  *(a->started) = 1;
+  pthread_cond_signal(a->cv);
+  pthread_mutex_unlock(a->mu);
+
+  // This call must block until the main thread releases the stream lock.
+  flockfile(a->file);
+
+  pthread_mutex_lock(a->mu);
+  *(a->acquired) = 1;
+  pthread_cond_signal(a->cv);
+  pthread_mutex_unlock(a->mu);
+
+  funlockfile(a->file);
+  return NULL;
+}
+
+// flockfile must block another thread until the lock is released by the
+// thread that currently owns it.
+int test_flockfile_blocks_other_thread() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  pthread_mutex_t mu;
+  if (pthread_mutex_init(&mu, NULL) != 0) {
+    fclose(file);
+    return -2;
+  }
+  pthread_cond_t cv;
+  if (pthread_cond_init(&cv, NULL) != 0) {
+    pthread_mutex_destroy(&mu);
+    fclose(file);
+    return -3;
+  }
+
+  int started = 0;
+  int acquired = 0;
+  struct flockfile_blocking_args args = {file, &mu, &cv, &started, &acquired};
+
+  flockfile(file);
+
+  pthread_t p;
+  if (pthread_create(&p, NULL, flockfile_blocking_thread, &args) != 0) {
+    funlockfile(file);
+    pthread_cond_destroy(&cv);
+    pthread_mutex_destroy(&mu);
+    fclose(file);
+    return -4;
+  }
+
+  // Wait until the worker thread has reached the point right before
+  // flockfile, then yield so the scheduler can run it into the blocking
+  // call.
+  pthread_mutex_lock(&mu);
+  while (!started)
+    pthread_cond_wait(&cv, &mu);
+  pthread_mutex_unlock(&mu);
+  sched_yield();
+
+  pthread_mutex_lock(&mu);
+  int acquired_before_unlock = acquired;
+  pthread_mutex_unlock(&mu);
+
+  funlockfile(file);
+
+  // Once we have released the stream lock, the worker must eventually be
+  // able to acquire it. Wait for that signal rather than for thread join
+  // so that a hang in flockfile is attributed to this assertion.
+  pthread_mutex_lock(&mu);
+  while (!acquired)
+    pthread_cond_wait(&cv, &mu);
+  pthread_mutex_unlock(&mu);
+
+  if (pthread_join(p, NULL) != 0) {
+    pthread_cond_destroy(&cv);
+    pthread_mutex_destroy(&mu);
+    fclose(file);
+    return -5;
+  }
+
+  pthread_cond_destroy(&cv);
+  pthread_mutex_destroy(&mu);
+  fclose(file);
+
+  if (acquired_before_unlock != 0)
+    return -6;
+  if (acquired != 1)
+    return -7;
+  return 0;
+}
+
+// flockfile is most commonly used to make a sequence of stdio calls atomic
+// from the perspective of other threads. Verify that the main stdio entry
+// points work normally while the current thread holds the stream lock.
+int test_flockfile_io_while_locked() {
+  FILE *file = fopen("TestApp", "r");
+  if (file == NULL)
+    return -1;
+
+  flockfile(file);
+
+  // ftello must succeed and report the initial position.
+  if (ftello(file) != 0) {
+    funlockfile(file);
+    fclose(file);
+    return -2;
+  }
+
+  // fread must succeed and advance the position.
+  char buf[8];
+  size_t n = fread(buf, 1, sizeof(buf), file);
+  if (n != sizeof(buf)) {
+    funlockfile(file);
+    fclose(file);
+    return -3;
+  }
+  if (ftello(file) != (off_t)sizeof(buf)) {
+    funlockfile(file);
+    fclose(file);
+    return -4;
+  }
+
+  // fseeko must succeed and reset the position.
+  if (fseeko(file, 0, SEEK_SET) != 0) {
+    funlockfile(file);
+    fclose(file);
+    return -5;
+  }
+  if (ftello(file) != 0) {
+    funlockfile(file);
+    fclose(file);
+    return -6;
+  }
+
+  // feof / clearerr / fflush / fileno must not abort while the lock is
+  // held by the calling thread.
+  (void)feof(file);
+  clearerr(file);
+  (void)fflush(file);
+  if (fileno(file) < 0) {
+    funlockfile(file);
+    fclose(file);
+    return -7;
+  }
+
+  funlockfile(file);
+  fclose(file);
+  return 0;
+}
+
+// === end flockfile / funlockfile tests ===
+
 int test_open() {
   int fd;
   // Test opening directories
@@ -5243,6 +5509,12 @@ struct {
     FUNC_DEF(test_mbstowcs),
     FUNC_DEF(test_CFMutableString),
     FUNC_DEF(test_fwrite),
+    FUNC_DEF(test_flockfile_basic),
+    FUNC_DEF(test_flockfile_recursive),
+    FUNC_DEF(test_ftrylockfile_unlocked),
+    FUNC_DEF(test_ftrylockfile_locked_by_other_thread),
+    FUNC_DEF(test_flockfile_blocks_other_thread),
+    FUNC_DEF(test_flockfile_io_while_locked),
     FUNC_DEF(test_open),
     FUNC_DEF(test_close),
     FUNC_DEF(test_cond_var),

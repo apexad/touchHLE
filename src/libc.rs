@@ -119,7 +119,7 @@ pub struct State {
     pub socket: sys::socket::State,
     stdlib: stdlib::State,
     string: string::State,
-    stdio: stdio::State,
+    pub stdio: stdio::State,
     time: time::State,
     errno: errno::State,
     clocale: clocale::State,
