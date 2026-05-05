@@ -117,12 +117,12 @@ pub const CLASSES: ClassExports = objc_classes! {
     }
 }
 - (())setOrientation:(UIDeviceOrientation)orientation {
-    env.window_mut().rotate_device(match orientation {
+    env.on_parent_stack_in_coroutine(|window, _| {window.rotate_device(match orientation {
         UIDeviceOrientationPortrait => DeviceOrientation::Portrait,
         UIDeviceOrientationLandscapeLeft => DeviceOrientation::LandscapeLeft,
         UIDeviceOrientationLandscapeRight => DeviceOrientation::LandscapeRight,
         _ => unimplemented!("Orientation {} not handled yet", orientation),
-    });
+    })});
 }
 
 - (bool)isBatteryMonitoringEnabled {
