@@ -50,6 +50,8 @@ const SO_ERROR: i32 = 0x1007;
 #[allow(non_camel_case_types)]
 pub type sa_family_t = u8;
 
+const FD_SETSIZE: i32 = 1024;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 #[allow(non_camel_case_types)]
@@ -409,7 +411,10 @@ fn select(
     // TODO: handle errno properly
     set_errno(env, 0);
 
-    assert!(n_fds > 0 && n_fds < 1024);
+    if !(n_fds > 0 && n_fds <= FD_SETSIZE) {
+        set_errno(env, EINVAL);
+        return -1;
+    }
 
     let should_block = if !timeout.is_null() {
         let timeval = env.mem.read(timeout);
