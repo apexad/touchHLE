@@ -247,4 +247,16 @@ impl AudioFile {
             }
         }
     }
+
+    pub fn estimated_duration(&self) -> f64 {
+        let AudioDescription {
+            sample_rate,
+            bytes_per_packet,
+            frames_per_packet,
+            ..
+        } = self.audio_description();
+        assert!(bytes_per_packet != 0); // TODO
+        self.byte_count() as f64 * frames_per_packet as f64
+            / (bytes_per_packet as f64 * sample_rate)
+    }
 }

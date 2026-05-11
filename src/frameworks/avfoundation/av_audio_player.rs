@@ -331,6 +331,17 @@ pub const CLASSES: ClassExports = objc_classes! {
     log_dbg!("[(AVAudioPlayer *) {:?} setCurrentTime: {}]", this, currentTime);
 }
 
+- (NSTimeInterval)duration {
+    let host_object = env.objc.borrow::<AVAudioPlayerHostObject>(this);
+    let audio_file_id = host_object.audio_file_id.unwrap();
+    let audio_file = &audio_file::State::get(&mut env.framework_state)
+        .audio_files
+        .get(&audio_file_id)
+        .unwrap()
+        .audio_file;
+    audio_file.estimated_duration()
+}
+
 @end
 
 };
