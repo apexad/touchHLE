@@ -1007,7 +1007,6 @@ where
                 }
             }
             b'x' | b'X' | b'u' => {
-                assert!(length_modifier.is_none());
                 let base: u32 = match specifier {
                     b'x' | b'X' => 16,
                     b'u' => 10,
@@ -1021,14 +1020,33 @@ where
                     src_char_idx,
                     base,
                     if max_width > 0 { max_width } else { u32::MAX },
-                    |s, base| u32::from_str_radix(s, base).unwrap_or(u32::MAX),
+                    |s, base| {
+                        // We parse as u64 to accommodate for
+                        // `unsigned long long` case (reserved for future use).
+                        // Later, the actual conversion to target type is
+                        // happening when we actually write value back.
+                        u64::from_str_radix(s, base).unwrap()
+                    },
                     |num| num.wrapping_neg(),
                 );
                 match res {
                     Ok((val, len)) => {
                         src_char_idx += len;
-                        let c_u32_ptr: ConstPtr<u32> = args.next(env);
-                        env.mem.write(c_u32_ptr.cast_mut(), val);
+                        match length_modifier {
+                            Some("hh") => {
+                                let c_char_ptr: ConstPtr<u8> = args.next(env);
+                                env.mem.write(c_char_ptr.cast_mut(), val as u8);
+                            }
+                            Some("h") => {
+                                let c_short_ptr: ConstPtr<u16> = args.next(env);
+                                env.mem.write(c_short_ptr.cast_mut(), val as u16);
+                            }
+                            None => {
+                                let c_u32_ptr: ConstPtr<u32> = args.next(env);
+                                env.mem.write(c_u32_ptr.cast_mut(), val as u32);
+                            }
+                            _ => unimplemented!("length_modifier {:?}", length_modifier),
+                        }
                     }
                     Err(_) => break,
                 }

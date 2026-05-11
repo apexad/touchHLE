@@ -749,6 +749,85 @@ int test_sscanf() {
   matched = sscanf("123", "%3[a-z]", str);
   if (matched != 0)
     return -55;
+  // %hu (unsigned short) edge cases
+  unsigned short us, us2;
+  matched = sscanf("0", "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -56;
+  matched = sscanf("65535", "%hu", &us);
+  if (!(matched == 1 && us == 65535))
+    return -57;
+  // Truncation: 65536 wraps to 0 as unsigned short
+  matched = sscanf("65536", "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -58;
+  // Truncation: 65537 wraps to 1 as unsigned short
+  matched = sscanf("65537", "%hu", &us);
+  if (!(matched == 1 && us == 1))
+    return -59;
+  matched = sscanf("100 200", "%hu %hu", &us, &us2);
+  if (!(matched == 2 && us == 100 && us2 == 200))
+    return -60;
+  // width limits the conversion
+  matched = sscanf("12345", "%3hu", &us);
+  if (!(matched == 1 && us == 123))
+    return -61;
+  // %hhu (unsigned char) edge cases
+  unsigned char uc, uc2;
+  matched = sscanf("0", "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -62;
+  matched = sscanf("255", "%hhu", &uc);
+  if (!(matched == 1 && uc == 255))
+    return -63;
+  // Truncation: 256 wraps to 0 as unsigned char
+  matched = sscanf("256", "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -64;
+  // Truncation: 257 wraps to 1 as unsigned char
+  matched = sscanf("257", "%hhu", &uc);
+  if (!(matched == 1 && uc == 1))
+    return -65;
+  matched = sscanf("10 20", "%hhu %hhu", &uc, &uc2);
+  if (!(matched == 2 && uc == 10 && uc2 == 20))
+    return -66;
+  // width limits the conversion
+  matched = sscanf("12345", "%2hhu", &uc);
+  if (!(matched == 1 && uc == 12))
+    return -67;
+  // Overflow above UINT_MAX: per C semantics, the input is parsed as
+  // a wide unsigned and only the low bits are stored, so 0x100000000
+  // gives 0 in both u16 and u8.
+  matched = sscanf("4294967296", "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -68;
+  matched = sscanf("4294967296", "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -69;
+  // %hx (unsigned short, hex) truncation
+  matched = sscanf("ffff", "%hx", &us);
+  if (!(matched == 1 && us == 0xFFFF))
+    return -70;
+  // Truncation: 0x10000 wraps to 0 as unsigned short
+  matched = sscanf("10000", "%hx", &us);
+  if (!(matched == 1 && us == 0))
+    return -71;
+  // Truncation: 0x10001 wraps to 1 as unsigned short
+  matched = sscanf("10001", "%hx", &us);
+  if (!(matched == 1 && us == 1))
+    return -72;
+  // %hhx (unsigned char, hex) truncation
+  matched = sscanf("ff", "%hhx", &uc);
+  if (!(matched == 1 && uc == 0xFF))
+    return -73;
+  // Truncation: 0x100 wraps to 0 as unsigned char
+  matched = sscanf("100", "%hhx", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -74;
+  // Truncation: 0x101 wraps to 1 as unsigned char
+  matched = sscanf("101", "%hhx", &uc);
+  if (!(matched == 1 && uc == 1))
+    return -75;
   return 0;
 }
 
@@ -2343,6 +2422,125 @@ int test_fscanf_new() {
   matched = fscanf(file, "%g", &f);
   if (!(matched == 1 && f == 123.0f))
     return -44;
+  SKIP_LINE(file);
+
+  // %hu (unsigned short) edge cases
+  unsigned short us, us2;
+  matched = fscanf(file, "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -45;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hu", &us);
+  if (!(matched == 1 && us == 65535))
+    return -46;
+  SKIP_LINE(file);
+
+  // Truncation: 65536 wraps to 0 as unsigned short
+  matched = fscanf(file, "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -47;
+  SKIP_LINE(file);
+
+  // Truncation: 65537 wraps to 1 as unsigned short
+  matched = fscanf(file, "%hu", &us);
+  if (!(matched == 1 && us == 1))
+    return -48;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hu %hu", &us, &us2);
+  if (!(matched == 2 && us == 100 && us2 == 200))
+    return -49;
+  SKIP_LINE(file);
+
+  // width limits the conversion
+  matched = fscanf(file, "%3hu", &us);
+  if (!(matched == 1 && us == 123))
+    return -50;
+  SKIP_LINE(file);
+
+  // %hhu (unsigned char) edge cases
+  unsigned char uc, uc2;
+  matched = fscanf(file, "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -51;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhu", &uc);
+  if (!(matched == 1 && uc == 255))
+    return -52;
+  SKIP_LINE(file);
+
+  // Truncation: 256 wraps to 0 as unsigned char
+  matched = fscanf(file, "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -53;
+  SKIP_LINE(file);
+
+  // Truncation: 257 wraps to 1 as unsigned char
+  matched = fscanf(file, "%hhu", &uc);
+  if (!(matched == 1 && uc == 1))
+    return -54;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhu %hhu", &uc, &uc2);
+  if (!(matched == 2 && uc == 10 && uc2 == 20))
+    return -55;
+  SKIP_LINE(file);
+
+  // width limits the conversion
+  matched = fscanf(file, "%2hhu", &uc);
+  if (!(matched == 1 && uc == 12))
+    return -56;
+  SKIP_LINE(file);
+
+  // Overflow above UINT_MAX: per C semantics, the input is parsed as
+  // a wide unsigned and only the low bits are stored, so 0x100000000
+  // gives 0 in both u16 and u8.
+  matched = fscanf(file, "%hu", &us);
+  if (!(matched == 1 && us == 0))
+    return -57;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhu", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -58;
+  SKIP_LINE(file);
+
+  // %hx (unsigned short, hex) truncation
+  matched = fscanf(file, "%hx", &us);
+  if (!(matched == 1 && us == 0xFFFF))
+    return -59;
+  SKIP_LINE(file);
+
+  // Truncation: 0x10000 wraps to 0 as unsigned short
+  matched = fscanf(file, "%hx", &us);
+  if (!(matched == 1 && us == 0))
+    return -60;
+  SKIP_LINE(file);
+
+  // Truncation: 0x10001 wraps to 1 as unsigned short
+  matched = fscanf(file, "%hx", &us);
+  if (!(matched == 1 && us == 1))
+    return -61;
+  SKIP_LINE(file);
+
+  // %hhx (unsigned char, hex) truncation
+  matched = fscanf(file, "%hhx", &uc);
+  if (!(matched == 1 && uc == 0xFF))
+    return -62;
+  SKIP_LINE(file);
+
+  // Truncation: 0x100 wraps to 0 as unsigned char
+  matched = fscanf(file, "%hhx", &uc);
+  if (!(matched == 1 && uc == 0))
+    return -63;
+  SKIP_LINE(file);
+
+  // Truncation: 0x101 wraps to 1 as unsigned char
+  matched = fscanf(file, "%hhx", &uc);
+  if (!(matched == 1 && uc == 1))
+    return -64;
 
   fclose(file);
   return 0;
