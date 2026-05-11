@@ -469,6 +469,16 @@ pub const CLASSES: ClassExports = objc_classes! {
     utf16[index as usize]
 }
 
+- (NSUInteger)lengthOfBytesUsingEncoding:(NSStringEncoding)encoding {
+    if C_STRING_FRIENDLY_ENCODINGS.contains(&encoding) {
+        let string = to_rust_string(env, this);
+        assert!(string.as_bytes().iter().all(|byte| byte.is_ascii())); // TODO
+        string.len().try_into().unwrap()
+    } else {
+        unimplemented!("lengthOfBytesUsingEncoding: {}", encoding)
+    }
+}
+
 - (NSRange)rangeOfString:(id)search_string {
     msg![env; this rangeOfString:search_string options:0u32]
 }
