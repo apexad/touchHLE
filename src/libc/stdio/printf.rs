@@ -931,55 +931,43 @@ where
                     0
                 };
 
-                match length_modifier {
-                    Some(lm) => {
-                        match lm {
-                            "h" => {
-                                // signed short*
-                                let res = str_to_int_inner_generic(
-                                    env,
-                                    &getc_fn,
-                                    &ungetc_fn,
-                                    subject,
-                                    src_char_idx,
-                                    base,
-                                    if max_width > 0 { max_width } else { u32::MAX },
-                                    |s, base| i16::from_str_radix(s, base).unwrap_or(i16::MAX),
-                                    |num| num.checked_mul(-1).unwrap_or(i16::MIN),
-                                );
-                                match res {
-                                    Ok((val, len)) => {
-                                        src_char_idx += len;
-                                        let c_int_ptr: ConstPtr<i16> = args.next(env);
-                                        env.mem.write(c_int_ptr.cast_mut(), val);
-                                    }
-                                    Err(_) => break,
-                                }
+                let res = str_to_int_inner_generic(
+                    env,
+                    &getc_fn,
+                    &ungetc_fn,
+                    subject,
+                    src_char_idx,
+                    base,
+                    if max_width > 0 { max_width } else { u32::MAX },
+                    |s, base| {
+                        // We parse as i64 to accommodate for
+                        // `signed long long` case (reserved for future use).
+                        // Later, the actual conversion to target type is
+                        // happening when we actually write value back.
+                        i64::from_str_radix(s, base).unwrap()
+                    },
+                    |num| num.checked_mul(-1).unwrap(),
+                );
+                match res {
+                    Ok((val, len)) => {
+                        src_char_idx += len;
+                        match length_modifier {
+                            Some("hh") => {
+                                let c_char_ptr: ConstPtr<i8> = args.next(env);
+                                env.mem.write(c_char_ptr.cast_mut(), val as i8);
                             }
-                            _ => unimplemented!(),
-                        }
-                    }
-                    _ => {
-                        let res = str_to_int_inner_generic(
-                            env,
-                            &getc_fn,
-                            &ungetc_fn,
-                            subject,
-                            src_char_idx,
-                            base,
-                            if max_width > 0 { max_width } else { u32::MAX },
-                            |s, base| i32::from_str_radix(s, base).unwrap_or(i32::MAX),
-                            |num| num.checked_mul(-1).unwrap_or(i32::MIN),
-                        );
-                        match res {
-                            Ok((val, len)) => {
-                                src_char_idx += len;
+                            Some("h") => {
+                                let c_short_ptr: ConstPtr<i16> = args.next(env);
+                                env.mem.write(c_short_ptr.cast_mut(), val as i16);
+                            }
+                            None => {
                                 let c_int_ptr: ConstPtr<i32> = args.next(env);
-                                env.mem.write(c_int_ptr.cast_mut(), val);
+                                env.mem.write(c_int_ptr.cast_mut(), val as i32);
                             }
-                            Err(_) => break,
+                            _ => unimplemented!("length_modifier {:?}", length_modifier),
                         }
                     }
+                    Err(_) => break,
                 }
             }
             b'f' | b'g' => {

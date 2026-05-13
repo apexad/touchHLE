@@ -828,6 +828,66 @@ int test_sscanf() {
   matched = sscanf("101", "%hhx", &uc);
   if (!(matched == 1 && uc == 1))
     return -75;
+  // %hd (signed short) edge cases
+  short ss, ss2;
+  matched = sscanf("0", "%hd", &ss);
+  if (!(matched == 1 && ss == 0))
+    return -76;
+  matched = sscanf("32767", "%hd", &ss);
+  if (!(matched == 1 && ss == 32767))
+    return -77;
+  matched = sscanf("-32768", "%hd", &ss);
+  if (!(matched == 1 && ss == -32768))
+    return -78;
+  // Truncation: 32768 wraps to -32768 as signed short
+  matched = sscanf("32768", "%hd", &ss);
+  if (!(matched == 1 && ss == -32768))
+    return -79;
+  // Truncation: -32769 wraps to 32767 as signed short
+  matched = sscanf("-32769", "%hd", &ss);
+  if (!(matched == 1 && ss == 32767))
+    return -80;
+  matched = sscanf("-100 200", "%hd %hd", &ss, &ss2);
+  if (!(matched == 2 && ss == -100 && ss2 == 200))
+    return -81;
+  // width limits the conversion
+  matched = sscanf("12345", "%3hd", &ss);
+  if (!(matched == 1 && ss == 123))
+    return -82;
+  // width counts the sign character
+  matched = sscanf("-12345", "%4hd", &ss);
+  if (!(matched == 1 && ss == -123))
+    return -83;
+  // %hhd (signed char) edge cases
+  signed char sc, sc2;
+  matched = sscanf("0", "%hhd", &sc);
+  if (!(matched == 1 && sc == 0))
+    return -84;
+  matched = sscanf("127", "%hhd", &sc);
+  if (!(matched == 1 && sc == 127))
+    return -85;
+  matched = sscanf("-128", "%hhd", &sc);
+  if (!(matched == 1 && sc == -128))
+    return -86;
+  // Truncation: 128 wraps to -128 as signed char
+  matched = sscanf("128", "%hhd", &sc);
+  if (!(matched == 1 && sc == -128))
+    return -87;
+  // Truncation: -129 wraps to 127 as signed char
+  matched = sscanf("-129", "%hhd", &sc);
+  if (!(matched == 1 && sc == 127))
+    return -88;
+  matched = sscanf("-10 20", "%hhd %hhd", &sc, &sc2);
+  if (!(matched == 2 && sc == -10 && sc2 == 20))
+    return -89;
+  // width limits the conversion
+  matched = sscanf("12345", "%2hhd", &sc);
+  if (!(matched == 1 && sc == 12))
+    return -90;
+  // width counts the sign character
+  matched = sscanf("-12345", "%3hhd", &sc);
+  if (!(matched == 1 && sc == -12))
+    return -91;
   return 0;
 }
 
@@ -2541,6 +2601,99 @@ int test_fscanf_new() {
   matched = fscanf(file, "%hhx", &uc);
   if (!(matched == 1 && uc == 1))
     return -64;
+  SKIP_LINE(file);
+
+  // %hd (signed short) edge cases
+  short ss, ss2;
+  matched = fscanf(file, "%hd", &ss);
+  if (!(matched == 1 && ss == 0))
+    return -65;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hd", &ss);
+  if (!(matched == 1 && ss == 32767))
+    return -66;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hd", &ss);
+  if (!(matched == 1 && ss == -32768))
+    return -67;
+  SKIP_LINE(file);
+
+  // Truncation: 32768 wraps to -32768 as signed short
+  matched = fscanf(file, "%hd", &ss);
+  if (!(matched == 1 && ss == -32768))
+    return -68;
+  SKIP_LINE(file);
+
+  // Truncation: -32769 wraps to 32767 as signed short
+  matched = fscanf(file, "%hd", &ss);
+  if (!(matched == 1 && ss == 32767))
+    return -69;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hd %hd", &ss, &ss2);
+  if (!(matched == 2 && ss == -100 && ss2 == 200))
+    return -70;
+  SKIP_LINE(file);
+
+  // width limits the conversion
+  matched = fscanf(file, "%3hd", &ss);
+  if (!(matched == 1 && ss == 123))
+    return -71;
+  SKIP_LINE(file);
+
+  // width counts the sign character
+  matched = fscanf(file, "%4hd", &ss);
+  if (!(matched == 1 && ss == -123))
+    return -72;
+  SKIP_LINE(file);
+
+  // %hhd (signed char) edge cases
+  signed char sc, sc2;
+  matched = fscanf(file, "%hhd", &sc);
+  if (!(matched == 1 && sc == 0))
+    return -73;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhd", &sc);
+  if (!(matched == 1 && sc == 127))
+    return -74;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhd", &sc);
+  if (!(matched == 1 && sc == -128))
+    return -75;
+  SKIP_LINE(file);
+
+  // Truncation: 128 wraps to -128 as signed char
+  matched = fscanf(file, "%hhd", &sc);
+  if (!(matched == 1 && sc == -128))
+    return -76;
+  SKIP_LINE(file);
+
+  // Truncation: -129 wraps to 127 as signed char
+  matched = fscanf(file, "%hhd", &sc);
+  if (!(matched == 1 && sc == 127))
+    return -77;
+  SKIP_LINE(file);
+
+  matched = fscanf(file, "%hhd %hhd", &sc, &sc2);
+  if (!(matched == 2 && sc == -10 && sc2 == 20))
+    return -78;
+  SKIP_LINE(file);
+
+  // width limits the conversion
+  matched = fscanf(file, "%2hhd", &sc);
+  if (!(matched == 1 && sc == 12))
+    return -79;
+  SKIP_LINE(file);
+
+  // width counts the sign character
+  matched = fscanf(file, "%3hhd", &sc);
+  if (!(matched == 1 && sc == -12))
+    return -80;
+  SKIP_LINE(file);
 
   fclose(file);
   return 0;
