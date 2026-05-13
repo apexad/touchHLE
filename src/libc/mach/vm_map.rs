@@ -14,6 +14,7 @@ use crate::Environment;
 use std::collections::HashMap;
 
 type vm_map_t = mach_port_t;
+type vm_purgable_t = i32;
 type mach_vm_address_t = u32;
 type mach_vm_size_t = u32;
 
@@ -66,7 +67,20 @@ fn vm_deallocate(
     KERN_SUCCESS
 }
 
+fn vm_purgable_control(
+    _env: &mut Environment,
+    target_task: vm_map_t,
+    address: mach_vm_address_t,
+    control: vm_purgable_t,
+    state: MutPtr<vm_purgable_t>,
+) -> kern_return_t {
+    assert_eq!(target_task, MACH_TASK_SELF);
+    log!("TODO: vm_purgable_control({target_task:#x}, {address:#x}, {control:#x}, {state:?})");
+    KERN_SUCCESS
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(vm_allocate(_, _, _, _)),
     export_c_func!(vm_deallocate(_, _, _)),
+    export_c_func!(vm_purgable_control(_, _, _, _)),
 ];
