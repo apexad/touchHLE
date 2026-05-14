@@ -7,7 +7,7 @@
 
 use crate::abi::{CallFromHost, GuestFunction};
 use crate::audio; // Keep this module namespaced to avoid confusion
-use crate::audio::AudioDescription;
+use crate::audio::{AudioDescription, AudioFileOpenError};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::frameworks::carbon_core::{eofErr, OSStatus};
 use crate::frameworks::core_audio_types::{debug_fourcc, fourcc, AudioStreamBasicDescription};
@@ -202,17 +202,10 @@ pub fn AudioFileOpenWithCallbacks(
         .bytes_at(data_ptr, env.mem.read(bytes_read_ptr))
         .to_vec();
 
-    let Ok(audio_file) = audio::AudioFile::read_from_vec(data_vec) else {
-        log!("Warning: AudioFileOpenWithCallbacks() failed parse",);
+    let Ok(guest_audio_file) = guest_audio_file_read_from_vec(env, data_vec) else {
+        log!("Warning: AudioFileOpenWithCallbacks() failed parse");
         return kAudioFileUnsupportedFileTypeError;
     };
-    let guest_audio_file = env.mem.alloc_and_write(OpaqueAudioFileID { _filler: 0 });
-
-    let host_object = AudioFileHostObject { audio_file };
-
-    State::get(&mut env.framework_state)
-        .audio_files
-        .insert(guest_audio_file, host_object);
 
     env.mem.write(out_audio_file, guest_audio_file);
 
@@ -477,3 +470,21 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioFileClose(_)),
     export_c_func!(AudioFileStreamOpen(_, _, _, _, _)),
 ];
+
+/// Helper function. Used by `AudioFileOpenWithCallbacks()` function and
+/// `[AVAudioPlayer initWithData:error:]` method.
+pub(crate) fn guest_audio_file_read_from_vec(
+    env: &mut Environment,
+    data_vec: Vec<u8>,
+) -> Result<AudioFileID, AudioFileOpenError> {
+    let audio_file = audio::AudioFile::read_from_vec(data_vec)?;
+    let guest_audio_file = env.mem.alloc_and_write(OpaqueAudioFileID { _filler: 0 });
+
+    let host_object = AudioFileHostObject { audio_file };
+
+    State::get(&mut env.framework_state)
+        .audio_files
+        .insert(guest_audio_file, host_object);
+
+    Ok(guest_audio_file)
+}

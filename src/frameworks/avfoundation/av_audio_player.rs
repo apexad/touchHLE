@@ -9,9 +9,9 @@
 
 use crate::dyld::HostFunction;
 use crate::frameworks::audio_toolbox::audio_file::{
-    self, kAudioFilePropertyDataFormat, kAudioFilePropertyPacketSizeUpperBound,
-    kAudioFileReadPermission, AudioFileClose, AudioFileGetProperty, AudioFileID, AudioFileOpenURL,
-    AudioFileReadPackets,
+    self, guest_audio_file_read_from_vec, kAudioFilePropertyDataFormat,
+    kAudioFilePropertyPacketSizeUpperBound, kAudioFileReadPermission, AudioFileClose,
+    AudioFileGetProperty, AudioFileID, AudioFileOpenURL, AudioFileReadPackets,
 };
 use crate::frameworks::audio_toolbox::audio_queue::{
     kAudioQueueParam_Volume, AudioQueueAllocateBuffer, AudioQueueBufferRef, AudioQueueDispose,
@@ -22,13 +22,12 @@ use crate::frameworks::carbon_core::eofErr;
 use crate::frameworks::core_audio_types::AudioStreamBasicDescription;
 use crate::frameworks::core_foundation::cf_run_loop::kCFRunLoopCommonModes;
 use crate::frameworks::foundation::ns_error::NSOSStatusErrorDomain;
-use crate::frameworks::foundation::{ns_string, NSInteger, NSTimeInterval};
-use crate::mem::{guest_size_of, GuestUSize, MutPtr, MutVoidPtr, Ptr};
+use crate::frameworks::foundation::{ns_string, NSInteger, NSTimeInterval, NSUInteger};
+use crate::mem::{guest_size_of, ConstVoidPtr, GuestUSize, MutPtr, MutVoidPtr, Ptr};
 use crate::objc::{
-    autorelease, id, msg, msg_class, nil, release, retain, todo_objc_setter, Class, ClassExports,
-    HostObject, NSZonePtr,
+    autorelease, id, msg, msg_class, nil, objc_classes, release, retain, todo_objc_setter, Class,
+    ClassExports, HostObject, NSZonePtr,
 };
-use crate::objc_classes;
 use crate::Environment;
 
 const kNumberBuffers: usize = 3;
@@ -104,10 +103,36 @@ pub const CLASSES: ClassExports = objc_classes! {
             autorelease(env, error);
             env.mem.write(out_error, error);
         }
+        release(env, this);
         return nil;
     }
 
     this
+}
+
+- (id)initWithData:(id)data // NSData*
+             error:(MutPtr<id>)out_error { // NSError**
+    let bytes: ConstVoidPtr = msg![env; data bytes];
+    let length: NSUInteger = msg![env; data length];
+    let data_vec = env
+        .mem
+        .bytes_at(bytes.cast(), length)
+        .to_vec();
+
+    assert_eq!(env.objc.borrow::<AVAudioPlayerHostObject>(this).audio_file_url, nil);
+
+    match guest_audio_file_read_from_vec(env, data_vec) {
+        Ok(audio_file_id) => {
+            assert!(env.objc.borrow::<AVAudioPlayerHostObject>(this).audio_file_id.is_none());
+            env.objc.borrow_mut::<AVAudioPlayerHostObject>(this).audio_file_id = Some(audio_file_id);
+            this
+        }
+        Err(_) => {
+            assert!(out_error.is_null()); // TODO
+            release(env, this);
+            nil
+        }
+    }
 }
 
 - (())setDelegate:(id)delegate {
