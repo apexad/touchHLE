@@ -133,6 +133,7 @@ pub struct State {
     ns_run_loop: ns_run_loop::State,
     ns_string: ns_string::State,
     ns_thread: ns_thread::State,
+    ns_time_zone: ns_time_zone::State,
     ns_user_defaults: ns_user_defaults::State,
 }
 
