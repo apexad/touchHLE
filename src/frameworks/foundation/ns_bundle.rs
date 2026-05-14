@@ -10,7 +10,7 @@ use crate::bundle::Bundle;
 use crate::frameworks::core_foundation::cf_bundle::{
     CFBundleCopyBundleLocalizations, CFBundleCopyPreferredLocalizationsFromArray,
 };
-use crate::frameworks::foundation::ns_string::from_rust_string;
+use crate::frameworks::foundation::ns_string::{from_rust_string, to_rust_string};
 use crate::objc::{
     autorelease, id, msg, msg_class, nil, objc_classes, release, retain, ClassExports, HostObject,
     NSZonePtr,
@@ -236,7 +236,7 @@ pub const CLASSES: ClassExports = objc_classes! {
         }
         return value;
     }
-    let name = if tableName == nil {
+    let name = if tableName == nil || msg![env; tableName isEqualToString:empty_str] {
         ns_string::get_static_str(env, "Localizable")
     } else {
         tableName
@@ -248,16 +248,23 @@ pub const CLASSES: ClassExports = objc_classes! {
     } else {
         let extension = ns_string::get_static_str(env, "strings");
         let dict_url: id = msg![env; this URLForResource:name withExtension:extension];
-        let dict: id = msg_class![env; NSDictionary dictionaryWithContentsOfURL:dict_url];
-        assert!(dict != nil);
-        retain(env, name);
-        retain(env, dict);
-        env.framework_state.foundation.ns_bundle.localization_tables.insert(name, dict);
-        dict
+        if dict_url == nil {
+            log!("Warning: Unable to locate localization table named '{}', caching as nil", to_rust_string(env, name));
+            retain(env, name);
+            env.framework_state.foundation.ns_bundle.localization_tables.insert(name, nil);
+            nil
+        } else {
+            let dict: id = msg_class![env; NSDictionary dictionaryWithContentsOfURL:dict_url];
+            assert!(dict != nil);
+            retain(env, name);
+            retain(env, dict);
+            env.framework_state.foundation.ns_bundle.localization_tables.insert(name, dict);
+            dict
+        }
     };
     let res: id = msg![env; dict objectForKey:key];
     if res == nil {
-        if value == nil || value == empty_str {
+        if value == nil || msg![env; value isEqualToString:empty_str] {
             return key;
         }
         return value;
