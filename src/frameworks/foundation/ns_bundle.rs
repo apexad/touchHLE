@@ -223,11 +223,11 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 - (id)localizedStringForKey:(id)key
                       value:(id)value
-                      table:(id)tableName {
+                      table:(id)table_name {
     log_dbg!("localizedStringForKey key:'{}' value:'{}' table:'{}'",
             if key == nil { std::borrow::Cow::from("(null)") } else { ns_string::to_rust_string(env, key) },
             if value == nil { std::borrow::Cow::from("(null)") } else { ns_string::to_rust_string(env, value) },
-            if tableName == nil { std::borrow::Cow::from("(null)") } else { ns_string::to_rust_string(env, tableName) }
+            if table_name == nil { std::borrow::Cow::from("(null)") } else { ns_string::to_rust_string(env, table_name) }
     );
     let empty_str: id = ns_string::get_static_str(env, "");
     if key == nil {
@@ -236,10 +236,10 @@ pub const CLASSES: ClassExports = objc_classes! {
         }
         return value;
     }
-    let name = if tableName == nil || msg![env; tableName isEqualToString:empty_str] {
+    let name = if table_name == nil || msg![env; table_name isEqualToString:empty_str] {
         ns_string::get_static_str(env, "Localizable")
     } else {
-        tableName
+        table_name
     };
     // TODO: support arbitrary bundles, not only main one
     assert_eq!(this, env.framework_state.foundation.ns_bundle.main_bundle.unwrap());
