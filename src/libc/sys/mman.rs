@@ -131,6 +131,5 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(munmap(_, _)),
     export_c_func!(madvise(_, _, _)),
     export_c_func!(shm_open(_, _, _)),
-    export_c_func!(shm_open(_, _, _)),
     export_c_func!(mprotect(_, _, _)),
 ];
