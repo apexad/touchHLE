@@ -11,10 +11,15 @@ use super::{cg_bitmap_context, cg_color, CGFloat, CGRect};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::frameworks::core_foundation::{CFRelease, CFRetain, CFTypeRef};
 use crate::frameworks::core_graphics::cg_bitmap_context::{
-    CGBitmapContextGetHeight, CGBitmapContextGetWidth,
+    CGBitmapContextDrawer, CGBitmapContextGetHeight, CGBitmapContextGetWidth,
 };
 use crate::frameworks::core_graphics::cg_color::CGColorRef;
+use crate::frameworks::core_graphics::cg_font::{
+    CGFontHostObject, CGFontRef, CGFontRelease, CGFontRetain, CGGlyph,
+};
 use crate::frameworks::core_graphics::cg_geometry::CGPointZero;
+use crate::frameworks::uikit;
+use crate::mem::{ConstPtr, GuestUSize};
 use crate::objc::{objc_classes, ClassExports, HostObject};
 use crate::Environment;
 
@@ -35,6 +40,7 @@ pub const CLASSES: ClassExports = objc_classes! {
     if bitmap_data.data_is_owned {
         env.mem.free(bitmap_data.data);
     }
+    CGFontRelease(env, host_obj.font);
 
     env.objc.dealloc_object(this, &mut env.mem)
 }
@@ -43,13 +49,22 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 };
 
+// TODO: keep more states saved once they are implemented
+type ContextState = (
+    (CGFloat, CGFloat, CGFloat, CGFloat),
+    CGAffineTransform,
+    CGFontRef,
+    CGFloat,
+);
+
 pub(super) struct CGContextHostObject {
     pub(super) subclass: CGContextSubclass,
     pub(super) rgb_fill_color: (CGFloat, CGFloat, CGFloat, CGFloat),
+    pub(super) font: CGFontRef,
+    pub(super) font_size: CGFloat,
     /// Current transform.
     pub(super) transform: CGAffineTransform,
-    // TODO: keep more states saved once they are implemented
-    pub(super) state_stack: Vec<((CGFloat, CGFloat, CGFloat, CGFloat), CGAffineTransform)>,
+    pub(super) state_stack: Vec<ContextState>,
 }
 impl HostObject for CGContextHostObject {}
 
@@ -173,16 +188,28 @@ pub fn CGContextDrawImage(
 
 fn CGContextSaveGState(env: &mut Environment, context: CGContextRef) {
     let host_obj = env.objc.borrow_mut::<CGContextHostObject>(context);
-    host_obj
-        .state_stack
-        .push((host_obj.rgb_fill_color, host_obj.transform));
+    host_obj.state_stack.push((
+        host_obj.rgb_fill_color,
+        host_obj.transform,
+        host_obj.font,
+        host_obj.font_size,
+    ));
+    CGFontRetain(env, env.objc.borrow::<CGContextHostObject>(context).font);
 }
 
 fn CGContextRestoreGState(env: &mut Environment, context: CGContextRef) {
+    // We need to release _old_ font, there are 2 cases:
+    // - font hasn't been set between save/restore -> this release corresponds
+    // the font retain from save
+    // - font has been set between save/restore -> we need to release old font
+    // retained on the set
+    CGFontRelease(env, env.objc.borrow::<CGContextHostObject>(context).font);
     let host_obj = env.objc.borrow_mut::<CGContextHostObject>(context);
     let state = host_obj.state_stack.pop().unwrap();
     host_obj.rgb_fill_color = state.0;
     host_obj.transform = state.1;
+    host_obj.font = state.2;
+    host_obj.font_size = state.3;
 }
 
 fn CGContextSetInterpolationQuality(
@@ -195,6 +222,52 @@ fn CGContextSetInterpolationQuality(
         context,
         quality
     );
+}
+
+fn CGContextSetFont(env: &mut Environment, context: CGContextRef, font: CGFontRef) {
+    CGFontRetain(env, font);
+    let old_font = env.objc.borrow_mut::<CGContextHostObject>(context).font;
+    CGFontRelease(env, old_font);
+    env.objc.borrow_mut::<CGContextHostObject>(context).font = font;
+}
+
+fn CGContextSetFontSize(env: &mut Environment, context: CGContextRef, size: CGFloat) {
+    env.objc
+        .borrow_mut::<CGContextHostObject>(context)
+        .font_size = size;
+}
+
+fn CGContextShowGlyphsAtPoint(
+    env: &mut Environment,
+    context: CGContextRef,
+    x: CGFloat,
+    y: CGFloat,
+    glyphs: ConstPtr<CGGlyph>,
+    count: GuestUSize,
+) {
+    let mut glyph_ids = Vec::new();
+    for i in 0..count {
+        let glyph_id = env.mem.read(glyphs + i);
+        glyph_ids.push(rusttype::GlyphId(glyph_id));
+    }
+
+    let font = env.objc.borrow::<CGContextHostObject>(context).font;
+    let font_size = env.objc.borrow::<CGContextHostObject>(context).font_size;
+
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+
+    let mut drawer = CGBitmapContextDrawer::new(&env.objc, &mut env.mem, context);
+    let fill_color = drawer.rgb_fill_color();
+
+    font.draw_glyphs(font_size, glyph_ids, (x, y), |raster_glyph| {
+        uikit::ui_font::draw_font_glyph(
+            &mut drawer,
+            raster_glyph,
+            fill_color,
+            /* clip_x: */ None,
+            /* clip_y: */ None,
+        )
+    });
 }
 
 pub const FUNCTIONS: FunctionExports = &[
@@ -215,4 +288,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSaveGState(_)),
     export_c_func!(CGContextRestoreGState(_)),
     export_c_func!(CGContextSetInterpolationQuality(_, _)),
+    export_c_func!(CGContextSetFont(_, _)),
+    export_c_func!(CGContextSetFontSize(_, _)),
+    export_c_func!(CGContextShowGlyphsAtPoint(_, _, _, _, _)),
 ];

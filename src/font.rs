@@ -14,7 +14,7 @@
 //! dependencies.
 
 use crate::paths;
-use rusttype::{Point, Scale};
+use rusttype::{vector, GlyphId, Point, Scale};
 use std::io::Read;
 
 pub struct Font {
@@ -67,6 +67,10 @@ impl RasterGlyph<'_> {
 }
 
 impl Font {
+    pub fn glyph_id_for_char(&self, c: u16) -> GlyphId {
+        self.font.glyph(char::from_u32(c as u32).unwrap()).id()
+    }
+
     fn from_resource_file(filename: &str) -> Font {
         let mut bytes = Vec::new();
         let path = format!("{}/{}", paths::FONTS_DIR, filename);
@@ -80,6 +84,14 @@ impl Font {
 
         let Some(font) = rusttype::Font::try_from_vec(bytes) else {
             panic!("Couldn't parse bundled font file {path:?}. This probably means the file is corrupt. Try re-downloading it.");
+        };
+
+        Font { font }
+    }
+
+    pub fn from_vec(bytes: Vec<u8>) -> Font {
+        let Some(font) = rusttype::Font::try_from_vec(bytes) else {
+            panic!("Couldn't parse font bytes.");
         };
 
         Font { font }
@@ -315,6 +327,7 @@ impl Font {
 
     /// Draw text. Calls the provided callback for each glyph that is to be
     /// drawn. Assumes y starts at the bottom-left corner and points upwards.
+    /// Used by UIKit for font rendering.
     pub fn draw<F: FnMut(RasterGlyph)>(
         &self,
         font_size: f32,
@@ -398,6 +411,79 @@ impl Font {
                 draw_glyph(raster_glyph);
             }
             line_y += line_height + line_gap;
+        }
+    }
+
+    /// Draw glyphs. Similar to [Self::draw], but uses raw glyph ids instead of
+    /// text and doesn't account for line breaks or text alignment (those
+    /// should be handled by the caller). Used by CoreGraphics for font
+    /// rendering.
+    /// TODO: unify with [Self::draw]. Note: y sense is different! If you
+    /// plan to do that refactoring, make sure that there are no visual
+    /// regressions in the GUI tests for CGFont/CGGlyph of the TestApp!
+    pub fn draw_glyphs<I, F>(
+        &self,
+        font_size: f32,
+        glyphs: I,
+        origin: (f32, f32),
+        mut draw_glyph: F,
+    ) where
+        I: IntoIterator<Item = GlyphId>,
+        F: FnMut(RasterGlyph),
+    {
+        // Cf. comment in the [Self::draw] function.
+        let mut glyph_bitmap: Vec<f32> = Vec::new();
+
+        let start = Point {
+            x: origin.0,
+            y: 0.0,
+        };
+        // This code is adapted from documentation of [rusttype::Font::layout].
+        let iter = self
+            .font
+            .glyphs_for(glyphs.into_iter())
+            .scan((None, 0.0), |(last, x), g| {
+                let g = g.scaled(scale(font_size));
+                if let Some(last) = last {
+                    *x += self.font.pair_kerning(scale(font_size), *last, g.id());
+                }
+                let w = g.h_metrics().advance_width;
+                let next = g.positioned(start + vector(*x, 0.0));
+                *last = Some(next.id());
+                *x += w;
+                Some(next)
+            });
+        for glyph in iter {
+            let Some(glyph_bounds) = glyph.pixel_bounding_box() else {
+                continue;
+            };
+            log_dbg!("draw_glyphs: glyph {:?}, bounds {:?}", glyph, glyph_bounds);
+            let x_offset = glyph_bounds.min.x;
+            // Note: glyph bounds are reporting y growing downwards, so we are
+            // subtracting here
+            let y_offset = (origin.1.round() as i32) - glyph_bounds.max.y;
+
+            let glyph_bitmap_bounds = (
+                glyph_bounds.width() as usize,
+                glyph_bounds.height() as usize,
+            );
+            glyph_bitmap.clear();
+            glyph_bitmap.resize(glyph_bitmap_bounds.0 * glyph_bitmap_bounds.1, 0.0);
+
+            glyph.draw(|x, y, coverage| {
+                // Note: need to fill the bitmap in the reverse y order to
+                // account for y sense
+                glyph_bitmap[(glyph_bitmap_bounds.1 - 1 - y as usize) * glyph_bitmap_bounds.0
+                    + x as usize] = coverage;
+            });
+
+            let raster_glyph = RasterGlyph {
+                origin: (x_offset as f32, y_offset as f32),
+                dimensions: (glyph_bitmap_bounds.0 as _, glyph_bitmap_bounds.1 as _),
+                pixels: &glyph_bitmap,
+            };
+
+            draw_glyph(raster_glyph);
         }
     }
 }

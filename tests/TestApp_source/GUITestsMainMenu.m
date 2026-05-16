@@ -8,6 +8,7 @@
 
 #include "GUITestsAppDelegate.h"
 #include "GUITestsCALayerTestsView.h"
+#include "GUITestsCGFontGlyphTestsView.h"
 #include "GUITestsMainMenu.h"
 
 @implementation GUITestsMainMenu : UIView
@@ -20,7 +21,12 @@ UIWindow *window2;
 - (instancetype)initWithFrame:(CGRect)frame {
   [super initWithFrame:frame];
 
-  UILabel *label = [[[UILabel alloc] initWithFrame:[self bounds]] autorelease];
+  self.backgroundColor = [UIColor whiteColor];
+
+  CGRect bounds = [self bounds];
+  CGRect labelBounds = CGRectMake(bounds.origin.x, bounds.origin.y,
+                                  bounds.size.width, bounds.size.height / 4.0);
+  UILabel *label = [[[UILabel alloc] initWithFrame:labelBounds] autorelease];
   label.text = [NSString stringWithUTF8String:"hello, world! 🌏"];
   label.textAlignment = UITextAlignmentCenter;
   [self addSubview:label];
@@ -32,22 +38,31 @@ UIWindow *window2;
   ballYVelocity = 5;
 
   UIButton *button1 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-  [button1 setTitle:[NSString stringWithUTF8String:"CALayer tests"]
+  [button1 setTitle:[NSString stringWithUTF8String:"Window 2"]
            forState:UIControlStateNormal];
-  [button1 setFrame:CGRectMake(40, 300, 240, 40)];
+  [button1 setFrame:CGRectMake(40, 140, 240, 40)];
   [button1 addTarget:self
-                action:@selector(goToCALayerTests)
+                action:@selector(toggleWindow)
       forControlEvents:UIControlEventTouchUpInside];
   [self addSubview:button1];
 
   UIButton *button2 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-  [button2 setTitle:[NSString stringWithUTF8String:"Window 2"]
+  [button2 setTitle:[NSString stringWithUTF8String:"CALayer tests"]
            forState:UIControlStateNormal];
-  [button2 setFrame:CGRectMake(40, 140, 240, 40)];
+  [button2 setFrame:CGRectMake(40, 220, 240, 40)];
   [button2 addTarget:self
-                action:@selector(toggleWindow)
+                action:@selector(goToCALayerTests)
       forControlEvents:UIControlEventTouchUpInside];
   [self addSubview:button2];
+
+  UIButton *button3 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+  [button3 setTitle:[NSString stringWithUTF8String:"CGFont/CGGlyph tests"]
+           forState:UIControlStateNormal];
+  [button3 setFrame:CGRectMake(40, 300, 240, 40)];
+  [button3 addTarget:self
+                action:@selector(goToCGFontGlyphTests)
+      forControlEvents:UIControlEventTouchUpInside];
+  [self addSubview:button3];
 
   return self;
 }
@@ -91,6 +106,12 @@ UIWindow *window2;
 - (void)goToCALayerTests {
   [((GUITestsAppDelegate *)[[UIApplication sharedApplication]
       delegate]) setMainView:[[[GUITestsCALayerTestsView alloc]
+                                 initWithFrame:[self frame]] autorelease]];
+}
+
+- (void)goToCGFontGlyphTests {
+  [((GUITestsAppDelegate *)[[UIApplication sharedApplication]
+      delegate]) setMainView:[[[GUITestsCGFontGlyphTestsView alloc]
                                  initWithFrame:[self frame]] autorelease]];
 }
 

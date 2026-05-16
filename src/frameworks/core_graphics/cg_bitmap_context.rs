@@ -19,7 +19,7 @@ use super::cg_image::{
 use super::{CGFloat, CGPoint, CGRect};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::image::{gamma_decode, gamma_encode, Image};
-use crate::mem::{GuestUSize, Mem, MutVoidPtr};
+use crate::mem::{GuestUSize, Mem, MutVoidPtr, Ptr};
 use crate::objc::ObjC;
 use crate::Environment;
 
@@ -82,6 +82,8 @@ pub fn CGBitmapContextCreate(
         }),
         // TODO: is this the correct default?
         rgb_fill_color: (0.0, 0.0, 0.0, 0.0),
+        font: Ptr::null(),
+        font_size: 17.0,
         transform: CGAffineTransformIdentity,
         state_stack: Vec::new(),
     };

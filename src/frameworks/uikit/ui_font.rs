@@ -252,7 +252,7 @@ pub fn break_lines_with_font<'a>(
 }
 
 #[inline(always)]
-fn draw_font_glyph(
+pub fn draw_font_glyph(
     drawer: &mut CGBitmapContextDrawer,
     raster_glyph: crate::font::RasterGlyph,
     fill_color: (f32, f32, f32, f32),
