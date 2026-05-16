@@ -398,6 +398,18 @@ fn lroundf(env: &mut Environment, arg: f32) -> i32 {
 
     arg.max(i32::MIN as f32).min(i32::MAX as f32).round() as i32
 }
+fn llround(env: &mut Environment, arg: f64) -> i64 {
+    // TODO: handle errno properly
+    set_errno(env, 0);
+
+    arg.max(i64::MIN as f64).min(i64::MAX as f64).round() as i64
+}
+fn llroundf(env: &mut Environment, arg: f32) -> i64 {
+    // TODO: handle errno properly
+    set_errno(env, 0);
+
+    arg.max(i64::MIN as f32).min(i64::MAX as f32).round() as i64
+}
 fn trunc(_env: &mut Environment, arg: f64) -> f64 {
     arg.trunc()
 }
@@ -582,6 +594,8 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(roundf(_)),
     export_c_func!(lround(_)),
     export_c_func!(lroundf(_)),
+    export_c_func!(llround(_)),
+    export_c_func!(llroundf(_)),
     export_c_func!(trunc(_)),
     export_c_func!(truncf(_)),
     export_c_func!(modf(_, _)),
