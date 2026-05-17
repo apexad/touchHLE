@@ -73,9 +73,32 @@ fn CGFontGetGlyphsForUnichars(
     true
 }
 
+fn CGFontGetUnitsPerEm(env: &mut Environment, font: CGFontRef) -> i32 {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.units_per_em().into()
+}
+
+fn CGFontGetAscent(env: &mut Environment, font: CGFontRef) -> i32 {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.ascent_unscaled() as i32
+}
+fn CGFontGetDescent(env: &mut Environment, font: CGFontRef) -> i32 {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.descent_unscaled() as i32
+}
+
+fn CGFontGetLeading(env: &mut Environment, font: CGFontRef) -> i32 {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.line_gap_unscaled() as i32
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontCreateWithDataProvider(_)),
     export_c_func!(CGFontRetain(_)),
     export_c_func!(CGFontRelease(_)),
     export_c_func!(CGFontGetGlyphsForUnichars(_, _, _, _)),
+    export_c_func!(CGFontGetUnitsPerEm(_)),
+    export_c_func!(CGFontGetAscent(_)),
+    export_c_func!(CGFontGetDescent(_)),
+    export_c_func!(CGFontGetLeading(_)),
 ];
