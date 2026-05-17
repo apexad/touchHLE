@@ -451,6 +451,7 @@ pub fn decode_current_number(env: &mut Environment, unarchiver: id) -> id {
     let num: id = msg_class![env; NSNumber alloc];
     let int_key = get_static_str(env, "NS.intval");
     let dbl_key = get_static_str(env, "NS.dblval");
+    let bool_key = get_static_str(env, "NS.boolval");
     if let Some(value) = get_value_to_decode_for_key(env, unarchiver, int_key) {
         // TODO: deal with type coercion
         let longlong = value.as_signed_integer().unwrap();
@@ -459,6 +460,10 @@ pub fn decode_current_number(env: &mut Environment, unarchiver: id) -> id {
         // TODO: deal with type coercion
         let double = value.as_real().unwrap();
         msg![env; num initWithDouble:double]
+    } else if let Some(value) = get_value_to_decode_for_key(env, unarchiver, bool_key) {
+        // TODO: deal with type coercion
+        let boolean = value.as_boolean().unwrap();
+        msg![env; num initWithBool:boolean]
     } else {
         unimplemented!()
     }

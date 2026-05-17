@@ -297,6 +297,7 @@ pub const CLASSES: ClassExports = objc_classes! {
     let (key, val) = match host_object {
         NSNumberHostObject::Int(i) => ("NS.intval", plist::Value::Integer((*i).into())),
         NSNumberHostObject::Double(d) => ("NS.dblval", plist::Value::Real(*d)),
+        NSNumberHostObject::Bool(b) => ("NS.boolval", plist::Value::Boolean(*b)),
         _ => unimplemented!("{:?}", host_object)
     };
 
