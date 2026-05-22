@@ -690,6 +690,13 @@ pub const CLASSES: ClassExports = objc_classes! {
     str_mut
 }
 
+- (bool)getFileSystemRepresentation:(MutPtr<u8>)buffer
+                          maxLength:(NSUInteger)buffer_size {
+    msg![env; this getCString:buffer
+                    maxLength:buffer_size
+                     encoding:NSUTF8StringEncoding]
+}
+
 - (bool)getCString:(MutPtr<u8>)buffer
          maxLength:(NSUInteger)buffer_size
           encoding:(NSStringEncoding)encoding {
