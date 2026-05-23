@@ -171,7 +171,7 @@ pub const CLASSES: ClassExports = objc_classes! {
         .duration_since(apple_epoch())
         .unwrap()
         .as_secs_f64();
-    time_interval - host_object.time_interval
+    host_object.time_interval - time_interval
 }
 
 - (NSTimeInterval)timeIntervalSince1970 {
