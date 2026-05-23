@@ -248,6 +248,19 @@ fn CGDataProviderCopyData(env: &mut Environment, provider: CGDataProviderRef) ->
     }
 }
 
+fn CGDataProviderCreateWithFilename(
+    env: &mut Environment,
+    filename: ConstPtr<u8>,
+) -> CGDataProviderRef {
+    log_dbg!(
+        "CGDataProviderCreateWithFilename('{:?}')",
+        env.mem.cstr_at_utf8(filename)
+    );
+    let path: id = msg_class![env; NSString stringWithCString:filename];
+    let data: id = msg_class![env; NSData dataWithContentsOfFile:path];
+    CGDataProviderCreateWithCFData(env, data)
+}
+
 fn CGDataProviderCreateWithURL(env: &mut Environment, url: CFURLRef) -> CGDataProviderRef {
     assert!(msg![env; url isFileURL]); // TODO
     let path: id = msg![env; url path];
@@ -277,6 +290,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGDataProviderCreateSequential(_, _)),
     export_c_func!(CGDataProviderCreateWithData(_, _, _, _)),
     export_c_func!(CGDataProviderCopyData(_)),
+    export_c_func!(CGDataProviderCreateWithFilename(_)),
     export_c_func!(CGDataProviderCreateWithURL(_)),
     export_c_func!(CGDataProviderCreateWithCFData(_)),
 ];
