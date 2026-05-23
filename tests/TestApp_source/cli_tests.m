@@ -5815,6 +5815,178 @@ int test_NSNumber_stringValue() {
   return 0;
 }
 
+@interface NotificationObserver : NSObject {
+@public
+  int receivedCount;
+  id lastNotification;
+}
+- (void)handleNotification:(NSNotification *)notification;
+@end
+
+@implementation NotificationObserver
+- (void)handleNotification:(NSNotification *)notification {
+  receivedCount++;
+  [lastNotification release];
+  lastNotification = [notification retain];
+}
+- (void)dealloc {
+  [lastNotification release];
+  [super dealloc];
+}
+@end
+
+// When name is nil, the observer should receive notifications of any name.
+int test_NSNotificationCenter_addObserver_nilName() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  NotificationObserver *observer = [NotificationObserver new];
+  SEL sel = NSSelectorFromString(
+      [NSString stringWithUTF8String:"handleNotification:"]);
+
+  [center addObserver:observer selector:sel name:nil object:nil];
+
+  [center postNotificationName:[NSString stringWithUTF8String:"FirstName"]
+                        object:nil];
+  if (observer->receivedCount != 1) {
+    [center removeObserver:observer];
+    [observer release];
+    [pool drain];
+    return -1;
+  }
+
+  [center postNotificationName:[NSString stringWithUTF8String:"SecondName"]
+                        object:nil];
+  if (observer->receivedCount != 2) {
+    [center removeObserver:observer];
+    [observer release];
+    [pool drain];
+    return -2;
+  }
+
+  // The last notification's name should match the most recently posted one.
+  NSString *lastName = [observer->lastNotification name];
+  NSString *expectedName = [NSString stringWithUTF8String:"SecondName"];
+  if (![lastName isEqualToString:expectedName]) {
+    [center removeObserver:observer];
+    [observer release];
+    [pool drain];
+    return -3;
+  }
+
+  [center removeObserver:observer];
+  [observer release];
+  [pool drain];
+  return 0;
+}
+
+// When name is nil but object is specified, only notifications from that
+// sender (with any name) should be delivered to the observer.
+int test_NSNotificationCenter_addObserver_nilName_withObject() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  NotificationObserver *observer = [NotificationObserver new];
+  SEL sel = NSSelectorFromString(
+      [NSString stringWithUTF8String:"handleNotification:"]);
+
+  NSObject *sender = [NSObject new];
+  NSObject *otherSender = [NSObject new];
+
+  [center addObserver:observer selector:sel name:nil object:sender];
+
+  // Notification from the matching sender should be delivered, regardless of
+  // the notification's name.
+  [center postNotificationName:[NSString stringWithUTF8String:"AnyName"]
+                        object:sender];
+  if (observer->receivedCount != 1) {
+    [center removeObserver:observer];
+    [sender release];
+    [otherSender release];
+    [observer release];
+    [pool drain];
+    return -1;
+  }
+
+  // Notification from a different sender should be filtered out, even though
+  // name is nil.
+  [center postNotificationName:[NSString stringWithUTF8String:"AnyName"]
+                        object:otherSender];
+  if (observer->receivedCount != 1) {
+    [center removeObserver:observer];
+    [sender release];
+    [otherSender release];
+    [observer release];
+    [pool drain];
+    return -2;
+  }
+
+  // A different notification name from the matching sender should still be
+  // delivered.
+  [center postNotificationName:[NSString stringWithUTF8String:"OtherName"]
+                        object:sender];
+  if (observer->receivedCount != 2) {
+    [center removeObserver:observer];
+    [sender release];
+    [otherSender release];
+    [observer release];
+    [pool drain];
+    return -3;
+  }
+
+  [center removeObserver:observer];
+  [sender release];
+  [otherSender release];
+  [observer release];
+  [pool drain];
+  return 0;
+}
+
+// An observer registered with name=nil should be properly unregistered by
+// removeObserver:, so it must not receive any further notifications.
+int test_NSNotificationCenter_addObserver_nilName_removeObserver() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  NotificationObserver *observer = [NotificationObserver new];
+  SEL sel = NSSelectorFromString(
+      [NSString stringWithUTF8String:"handleNotification:"]);
+
+  [center addObserver:observer selector:sel name:nil object:nil];
+
+  [center postNotificationName:[NSString stringWithUTF8String:"BeforeRemove"]
+                        object:nil];
+  if (observer->receivedCount != 1) {
+    [center removeObserver:observer];
+    [observer release];
+    [pool drain];
+    return -1;
+  }
+
+  [center removeObserver:observer];
+
+  [center postNotificationName:[NSString stringWithUTF8String:"AfterRemove"]
+                        object:nil];
+  if (observer->receivedCount != 1) {
+    [observer release];
+    [pool drain];
+    return -2;
+  }
+
+  // Posting under a different name after removal should not deliver either.
+  [center postNotificationName:[NSString stringWithUTF8String:"OtherName"]
+                        object:nil];
+  if (observer->receivedCount != 1) {
+    [observer release];
+    [pool drain];
+    return -3;
+  }
+
+  [observer release];
+  [pool drain];
+  return 0;
+}
+
 // clang-format off
 #define FUNC_DEF(func)                                                         \
   { &func, #func }
@@ -5916,6 +6088,9 @@ struct {
     FUNC_DEF(test_NSInvocation_retainArguments),
     FUNC_DEF(test_NSInvocation_pointer),
     FUNC_DEF(test_Initialize),
+    FUNC_DEF(test_NSNotificationCenter_addObserver_nilName),
+    FUNC_DEF(test_NSNotificationCenter_addObserver_nilName_withObject),
+    FUNC_DEF(test_NSNotificationCenter_addObserver_nilName_removeObserver),
 };
 // clang-format on
 

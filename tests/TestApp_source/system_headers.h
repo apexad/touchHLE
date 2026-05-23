@@ -183,6 +183,26 @@ SEL NSSelectorFromString(NSString *);
 - (void)invokeWithTarget:(id)target;
 @end
 
+@interface NSNotification : NSObject
+- (NSString *)name;
+- (id)object;
+- (NSDictionary *)userInfo;
+@end
+
+@interface NSNotificationCenter : NSObject
++ (NSNotificationCenter *)defaultCenter;
+- (void)addObserver:(id)observer
+           selector:(SEL)selector
+               name:(NSString *)name
+             object:(id)object;
+- (void)removeObserver:(id)observer;
+- (void)removeObserver:(id)observer name:(NSString *)name object:(id)object;
+- (void)postNotificationName:(NSString *)name object:(id)object;
+- (void)postNotificationName:(NSString *)name
+                      object:(id)object
+                    userInfo:(NSDictionary *)userInfo;
+@end
+
 // Core Graphics
 
 // (See CGAffineTransform.c for where this define comes from.)
