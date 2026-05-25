@@ -1015,6 +1015,7 @@ dependencies = [
  "mach_object",
  "md-5",
  "nibarchive",
+ "owned_ttf_parser",
  "plist",
  "quick-xml",
  "rusttype",

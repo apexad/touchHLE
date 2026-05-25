@@ -14,6 +14,7 @@
 //! dependencies.
 
 use crate::paths;
+use owned_ttf_parser::AsFaceRef;
 use rusttype::{vector, GlyphId, Point, Scale};
 use std::io::Read;
 
@@ -166,6 +167,15 @@ impl Font {
     pub fn line_gap(&self, font_size: f32) -> f32 {
         let v_metrics = self.font.v_metrics(scale(font_size));
         v_metrics.line_gap
+    }
+
+    pub fn global_bounding_box(&self) -> (i16, i16, i16, i16) {
+        let face_ref = match &self.font {
+            rusttype::Font::Owned(f) => f.as_face_ref(),
+            _ => unreachable!(),
+        };
+        let rect = face_ref.global_bounding_box();
+        (rect.x_min, rect.y_min, rect.x_max, rect.y_max)
     }
 
     fn line_height_and_gap(&self, font_size: f32) -> (f32, f32) {

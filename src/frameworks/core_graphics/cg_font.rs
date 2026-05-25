@@ -7,6 +7,7 @@
 
 use super::cg_data_provider;
 use super::cg_data_provider::CGDataProviderRef;
+use super::{CGFloat, CGPoint, CGRect, CGSize};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::font::Font;
 use crate::frameworks::core_foundation::{CFRelease, CFRetain, CFTypeRef};
@@ -92,6 +93,21 @@ fn CGFontGetLeading(env: &mut Environment, font: CGFontRef) -> i32 {
     font.line_gap_unscaled() as i32
 }
 
+fn CGFontGetFontBBox(env: &mut Environment, font: CGFontRef) -> CGRect {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    let (x_min, y_min, x_max, y_max) = font.global_bounding_box();
+    CGRect {
+        origin: CGPoint {
+            x: x_min as CGFloat,
+            y: y_min as CGFloat,
+        },
+        size: CGSize {
+            width: (x_max - x_min) as CGFloat,
+            height: (y_max - y_min) as CGFloat,
+        },
+    }
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontCreateWithDataProvider(_)),
     export_c_func!(CGFontRetain(_)),
@@ -101,4 +117,5 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontGetAscent(_)),
     export_c_func!(CGFontGetDescent(_)),
     export_c_func!(CGFontGetLeading(_)),
+    export_c_func!(CGFontGetFontBBox(_)),
 ];
