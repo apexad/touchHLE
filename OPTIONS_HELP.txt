@@ -14,7 +14,7 @@ View options:
         Changes the orientation the virtual device will have at startup.
         The default is portrait.
 
-        --upside-down means rotate 180° from portrait
+        --upside-down means rotate 180° from portrait.
         --landscape-left means rotate 90° counterclockwise from portrait.
         --landscape-right means rotate 90° clockwise from portrait.
 
