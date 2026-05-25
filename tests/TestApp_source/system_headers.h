@@ -315,9 +315,14 @@ CGContextRef CGBitmapContextCreate(void *data, size_t width, size_t height,
                                    unsigned int bitmapInfo);
 CGImageRef CGBitmapContextCreateImage(CGContextRef c);
 void CGContextRelease(CGContextRef c);
+void CGContextSaveGState(CGContextRef c);
+void CGContextRestoreGState(CGContextRef c);
 void CGContextSetRGBFillColor(CGContextRef c, CGFloat r, CGFloat g, CGFloat b,
                               CGFloat a);
 void CGContextFillRect(CGContextRef c, CGRect rect);
+void CGContextTranslateCTM(CGContextRef c, CGFloat tx, CGFloat ty);
+void CGContextScaleCTM(CGContextRef c, CGFloat sx, CGFloat sy);
+void CGContextRotateCTM(CGContextRef c, CGFloat angle);
 
 // `CGFont.h` and `CGContext.h` text functions.
 

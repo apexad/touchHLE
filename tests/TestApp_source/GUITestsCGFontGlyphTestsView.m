@@ -9,7 +9,7 @@
 
 #include "GUITestsCGFontGlyphTestsView.h"
 
-#define NUM_TESTS 3
+#define NUM_TESTS 5
 
 #define BITMAP_WIDTH 280
 #define BITMAP_HEIGHT 160
@@ -287,6 +287,79 @@ NSUInteger fontTestNum;
   NSLog([NSString
       stringWithUTF8String:
           "CGFont/CGGlyph test3: 256 single-glyph runs in 16x16 grid"]);
+
+  [self presentContext:context];
+}
+
+// Test 4: color and alpha. Three translucent overlapping '#' glyphs plus one
+// fully opaque, all via CGContextShowGlyphsAtPoint. Surfaces text-path
+// blending bugs.
+- (void)test4 {
+  CGContextRef context = [self makeContext];
+  CGContextSetFont(context, [self testFont]);
+  CGContextSetFontSize(context, 48.0);
+
+  CGGlyph hash[] = {[self glyphForChar:'#']};
+
+  CGContextSetRGBFillColor(context, 1.0, 0.0, 0.0, 0.5);
+  CGContextShowGlyphsAtPoint(context, 30.0, 90.0, hash, 1);
+  CGContextSetRGBFillColor(context, 0.0, 1.0, 0.0, 0.5);
+  CGContextShowGlyphsAtPoint(context, 60.0, 90.0, hash, 1);
+  CGContextSetRGBFillColor(context, 0.0, 0.0, 1.0, 0.5);
+  CGContextShowGlyphsAtPoint(context, 90.0, 90.0, hash, 1);
+  CGContextSetRGBFillColor(context, 0.0, 0.0, 0.0, 1.0);
+  CGContextShowGlyphsAtPoint(context, 130.0, 90.0, hash, 1);
+
+  summaryLabel.text = [NSString
+      stringWithUTF8String:"test4: three a=0.5 '#' overlapping + one opaque"];
+  paramsLabel1.text =
+      [NSString stringWithUTF8String:
+                    "passes: red(.5)@30 green(.5)@60 blue(.5)@90 black(1)@130"];
+  paramsLabel2.text = [NSString
+      stringWithUTF8String:"LiberationMono-Regular 48pt, baseline y=90"];
+
+  NSLog([NSString
+      stringWithUTF8String:"CGFont/CGGlyph test4: 4 CGContextShowGlyphsAtPoint "
+                           "w/ alpha blending"]);
+
+  [self presentContext:context];
+}
+
+// Test 5: CTM rotation. CGContextShowGlyphsAtPoint emits glyphs through the
+// current transformation, so rotating the CTM around the bitmap centre should
+// fan a "tXy" run around like the spokes of a wheel.
+- (void)test5 {
+  CGContextRef context = [self makeContext];
+  CGContextSetFont(context, [self testFont]);
+  CGContextSetFontSize(context, 16.0);
+
+  CGGlyph glyphs[] = {[self glyphForChar:'t'], [self glyphForChar:'X'],
+                      [self glyphForChar:'y']};
+  size_t count = sizeof(glyphs) / sizeof(glyphs[0]);
+
+  int steps = 8;
+  for (int i = 0; i < steps; i++) {
+    CGContextSaveGState(context);
+    CGContextTranslateCTM(context, (CGFloat)BITMAP_WIDTH / 2.0,
+                          (CGFloat)BITMAP_HEIGHT / 2.0);
+    CGContextRotateCTM(context,
+                       (CGFloat)i * (CGFloat)(2.0 * M_PI) / (CGFloat)steps);
+    CGContextShowGlyphsAtPoint(context, 30.0, 0.0, glyphs, count);
+    CGContextRestoreGState(context);
+  }
+
+  summaryLabel.text = [NSString
+      stringWithUTF8String:"test5: \"tXy\" rotated around centre, 8 steps"];
+  paramsLabel1.text =
+      [NSString stringWithUTF8String:
+                    "each step: save/translate centre/rotate/show/restore"];
+  paramsLabel2.text = [self describeGlyphs:glyphs count:count];
+  paramsLabel3.text = [NSString
+      stringWithUTF8String:"centre=(BITMAP_WIDTH/2, BITMAP_HEIGHT/2)"];
+
+  NSLog([NSString
+      stringWithUTF8String:
+          "CGFont/CGGlyph test5: 8 rotated CGContextShowGlyphsAtPoint runs"]);
 
   [self presentContext:context];
 }
