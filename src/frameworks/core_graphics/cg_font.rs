@@ -108,6 +108,27 @@ fn CGFontGetFontBBox(env: &mut Environment, font: CGFontRef) -> CGRect {
     }
 }
 
+fn CGFontGetGlyphAdvances(
+    env: &mut Environment,
+    font: CGFontRef,
+    glyphs: ConstPtr<CGGlyph>,
+    count: GuestUSize,
+    advances: MutPtr<i32>,
+) -> bool {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    for i in 0..count {
+        let glyph_id = env.mem.read(glyphs + i);
+        let advance_width = font.glyph_hor_advance(glyph_id).unwrap().into();
+        env.mem.write(advances + i, advance_width);
+    }
+    true
+}
+
+fn CGFontGetItalicAngle(env: &mut Environment, font: CGFontRef) -> CGFloat {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.italic_angle().unwrap_or(0.0)
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontCreateWithDataProvider(_)),
     export_c_func!(CGFontRetain(_)),
@@ -118,4 +139,6 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontGetDescent(_)),
     export_c_func!(CGFontGetLeading(_)),
     export_c_func!(CGFontGetFontBBox(_)),
+    export_c_func!(CGFontGetGlyphAdvances(_, _, _, _)),
+    export_c_func!(CGFontGetItalicAngle(_)),
 ];

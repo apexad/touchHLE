@@ -169,13 +169,25 @@ impl Font {
         v_metrics.line_gap
     }
 
-    pub fn global_bounding_box(&self) -> (i16, i16, i16, i16) {
-        let face_ref = match &self.font {
+    fn as_face_ref(&self) -> &owned_ttf_parser::Face<'_> {
+        match &self.font {
             rusttype::Font::Owned(f) => f.as_face_ref(),
             _ => unreachable!(),
-        };
-        let rect = face_ref.global_bounding_box();
+        }
+    }
+
+    pub fn global_bounding_box(&self) -> (i16, i16, i16, i16) {
+        let rect = self.as_face_ref().global_bounding_box();
         (rect.x_min, rect.y_min, rect.x_max, rect.y_max)
+    }
+
+    pub fn glyph_hor_advance(&self, glyph_id: u16) -> Option<u16> {
+        self.as_face_ref()
+            .glyph_hor_advance(owned_ttf_parser::GlyphId(glyph_id))
+    }
+
+    pub fn italic_angle(&self) -> Option<f32> {
+        self.as_face_ref().italic_angle()
     }
 
     fn line_height_and_gap(&self, font_size: f32) -> (f32, f32) {
