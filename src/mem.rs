@@ -576,6 +576,28 @@ impl Mem {
         ptr
     }
 
+    pub fn valloc(&mut self, size: GuestUSize) -> MutVoidPtr {
+        let (vm, heap) = self.allocators_mut(None);
+        let alloc = match heap.valloc(vm, size) {
+            None => {
+                panic!("Could not find large enough chunk to vallocate {size:#x} bytes")
+            }
+            Some(alloc) => alloc,
+        };
+        assert!(alloc.base.is_multiple_of(PAGE_SIZE));
+        let alloc_size = alloc.size.get();
+        assert!(alloc_size.is_multiple_of(PAGE_SIZE));
+        let ptr = Ptr::from_bits(alloc.base);
+        self.bytes_at_mut(ptr.cast(), alloc_size).fill(0);
+        log_dbg!(
+            "Vallocated {:?} ({:#x} bytes requested, {:#x} bytes allocated)",
+            ptr,
+            size,
+            alloc_size
+        );
+        ptr
+    }
+
     /// Get size of allocation at `ptr` in the default heap.
     pub fn malloc_size(&mut self, ptr: ConstVoidPtr) -> GuestUSize {
         self.malloc_size_in_heap(None, ptr)

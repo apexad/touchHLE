@@ -912,6 +912,21 @@ int test_realloc() {
   return res == 0 ? 0 : -1;
 }
 
+int test_valloc() {
+  void *ptr = valloc(1);
+  // Assume at least 4Kb page size alignment
+  if (((uintptr_t)ptr & 0xFFF) != 0) {
+    return -1;
+  }
+  if (ptr == NULL)
+    return -2;
+  ptr = realloc(ptr, 16);
+  if (ptr == NULL)
+    return -3;
+  free(ptr);
+  return 0;
+}
+
 int test_atof() {
   if (atof("1") != 1)
     return -1;
@@ -6051,6 +6066,7 @@ struct {
     FUNC_DEF(test_sscanf),
     FUNC_DEF(test_swscanf),
     FUNC_DEF(test_realloc),
+    FUNC_DEF(test_valloc),
     FUNC_DEF(test_atof),
     FUNC_DEF(test_strtof),
     FUNC_DEF(test_sem),
