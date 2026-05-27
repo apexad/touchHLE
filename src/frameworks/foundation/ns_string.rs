@@ -1322,6 +1322,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 - (id)initWithData:(id)data // NSData *
           encoding:(NSStringEncoding)encoding {
+    if data == nil {
+        release(env, this);
+        return nil;
+    }
     let bytes: ConstVoidPtr = msg![env; data bytes];
     let bytes: ConstPtr<u8> = bytes.cast();
     let length: NSUInteger = msg![env; data length];
