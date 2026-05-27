@@ -1975,7 +1975,7 @@ mod ns_string_tests {
 /// In case of small buffer no data is written.
 ///
 /// Right now this helper is used for `NSString getCString:maxLength:encoding:`
-/// method and `CFStringGetPascalString` function.
+/// method, `CFStringGetPascalString` and `CFStringGetBytes` functions.
 pub fn get_bytes_buffer_inner(
     env: &mut Environment,
     str: id, // NSString *

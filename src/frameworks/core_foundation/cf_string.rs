@@ -278,6 +278,46 @@ fn CFStringGetCString(
     msg![env; a getCString:buffer maxLength:buffer_size encoding:encoding]
 }
 
+fn CFStringGetBytes(
+    env: &mut Environment,
+    string: CFStringRef,
+    range: CFRange,
+    encoding: CFStringEncoding,
+    loss_byte: u8,
+    is_external: bool,
+    buffer: MutPtr<u8>,
+    max_buf_len: CFIndex,
+    used_buf_len: MutPtr<CFIndex>,
+) -> CFIndex {
+    assert_eq!(loss_byte, 0);
+    assert!(!is_external); // TODO
+
+    let range_len = range.length;
+    let range = NSRange {
+        location: range.location.try_into().unwrap(),
+        length: range_len.try_into().unwrap(),
+    };
+    // TODO: avoid copying
+    let substring: id = msg![env; string substringWithRange:range];
+
+    let encoding = CFStringConvertEncodingToNSStringEncoding(env, encoding);
+    let buffer_size: NSUInteger = max_buf_len.try_into().unwrap();
+    let success: bool =
+        ns_string::get_bytes_buffer_inner(env, substring, buffer, buffer_size, encoding, false);
+    assert!(success); // TODO
+    let length: NSUInteger = msg![env; substring length];
+    assert_eq!(length, range_len.try_into().unwrap());
+
+    if !used_buf_len.is_null() {
+        let result_bytes_length: NSUInteger =
+            msg![env; substring lengthOfBytesUsingEncoding:encoding];
+        env.mem
+            .write(used_buf_len, result_bytes_length.try_into().unwrap());
+    }
+
+    length.try_into().unwrap()
+}
+
 fn CFStringGetLength(env: &mut Environment, the_string: CFStringRef) -> CFIndex {
     let length: NSUInteger = msg![env; the_string length];
     length.try_into().unwrap()
@@ -397,6 +437,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CFStringGetCharactersPtr(_)),
     export_c_func!(CFStringGetCStringPtr(_, _)),
     export_c_func!(CFStringGetCString(_, _, _, _)),
+    export_c_func!(CFStringGetBytes(_, _, _, _, _, _, _, _)),
     export_c_func!(CFStringGetIntValue(_)),
     export_c_func!(CFStringGetLength(_)),
     export_c_func!(CFStringFind(_, _, _)),
