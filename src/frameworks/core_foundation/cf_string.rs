@@ -177,6 +177,21 @@ fn CFStringCreateWithFormatAndArguments(
     ns_string::from_rust_string(env, res)
 }
 
+fn CFStringCreateWithSubstring(
+    env: &mut Environment,
+    allocator: CFAllocatorRef,
+    the_string: CFStringRef,
+    range: CFRange,
+) -> CFStringRef {
+    assert!(allocator == kCFAllocatorDefault || env.mem.read(allocator).is_system_default()); // unimplemented
+    let range = NSRange {
+        location: range.location.try_into().unwrap(),
+        length: range.length.try_into().unwrap(),
+    };
+    let res: id = msg![env; the_string substringWithRange:range];
+    msg![env; res copy]
+}
+
 pub type CFStringCompareFlags = CFOptionFlags;
 
 fn CFStringCompare(
@@ -364,6 +379,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CFStringCreateWithCString(_, _, _)),
     export_c_func!(CFStringCreateWithFormat(_, _, _, _)),
     export_c_func!(CFStringCreateWithFormatAndArguments(_, _, _, _)),
+    export_c_func!(CFStringCreateWithSubstring(_, _, _)),
     export_c_func!(CFStringCompare(_, _, _)),
     export_c_func!(CFStringCompareWithOptions(_, _, _, _)),
     export_c_func!(CFStringDelete(_, _)),
