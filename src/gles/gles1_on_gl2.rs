@@ -746,10 +746,25 @@ impl GLES for GLES1OnGL2<'_> {
         gl21::DisableClientState(array);
     }
     unsafe fn GetBooleanv(&mut self, pname: GLenum, params: *mut GLboolean) {
-        let (type_, _count) = GET_PARAMS.get_type_info(pname);
-        // TODO: type conversion
-        assert!(type_ == ParamType::Boolean);
-        gl21::GetBooleanv(pname, params);
+        let (type_, count) = GET_PARAMS.get_type_info(pname);
+        match type_ {
+            ParamType::Boolean => {
+                gl21::GetBooleanv(pname, params);
+            }
+            ParamType::Float => {
+                assert_eq!(count, 1); // TODO
+                let mut f: GLfloat = 0.0;
+                gl21::GetFloatv(pname, &mut f);
+                *params = if f == 0.0 { gl21::FALSE } else { gl21::TRUE };
+            }
+            ParamType::Int => {
+                assert_eq!(count, 1); // TODO
+                let mut i: GLint = 0;
+                gl21::GetIntegerv(pname, &mut i);
+                *params = if i == 0 { gl21::FALSE } else { gl21::TRUE };
+            }
+            _ => unimplemented!("TODO: type conversion for {:?}", type_),
+        }
     }
     // TODO: GetFixedv
     unsafe fn GetFloatv(&mut self, pname: GLenum, params: *mut GLfloat) {
