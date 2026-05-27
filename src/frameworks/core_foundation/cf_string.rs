@@ -248,6 +248,15 @@ fn CFStringGetCharacters(
     };
     msg![env; string getCharacters:buffer range:range]
 }
+
+fn CFStringGetCharactersPtr(_env: &mut Environment, _the_string: CFStringRef) -> ConstPtr<unichar> {
+    // NULL is expected if the function cannot provide a buffer of Unicode
+    // characters `efficiently`. Moreover, the same doc claims that the caller
+    // should not `count on receiving a non-NULL result from this function
+    // under any circumstances`. Win-win situation, if you ask me!
+    ConstPtr::null()
+}
+
 fn CFStringGetCStringPtr(
     env: &mut Environment,
     the_string: CFStringRef,
@@ -385,6 +394,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CFStringDelete(_, _)),
     export_c_func!(CFStringGetCharacterAtIndex(_, _)),
     export_c_func!(CFStringGetCharacters(_, _, _)),
+    export_c_func!(CFStringGetCharactersPtr(_)),
     export_c_func!(CFStringGetCStringPtr(_, _)),
     export_c_func!(CFStringGetCString(_, _, _, _)),
     export_c_func!(CFStringGetIntValue(_)),
