@@ -769,9 +769,12 @@ impl GLES for GLES1OnGL2<'_> {
     // TODO: GetFixedv
     unsafe fn GetFloatv(&mut self, pname: GLenum, params: *mut GLfloat) {
         let (type_, _count) = GET_PARAMS.get_type_info(pname);
-        // TODO: type conversion
-        assert!(type_ == ParamType::Float || type_ == ParamType::FloatSpecial);
-        gl21::GetFloatv(pname, params);
+        match type_ {
+            ParamType::Float | ParamType::FloatSpecial => {
+                gl21::GetFloatv(pname, params);
+            }
+            _ => unimplemented!("TODO: type conversion for {:?}", type_),
+        }
     }
     unsafe fn GetIntegerv(&mut self, pname: GLenum, params: *mut GLint) {
         let (type_, _count) = GET_PARAMS.get_type_info(pname);
