@@ -15,7 +15,8 @@ use super::{kCFNotFound, CFComparisonResult, CFIndex, CFOptionFlags, CFRange};
 use crate::abi::{DotDotDot, VaList};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::frameworks::foundation::{ns_string, unichar, NSNotFound, NSRange, NSUInteger};
-use crate::mem::{ConstPtr, MutPtr};
+use crate::libc::string::strlen;
+use crate::mem::{ConstPtr, GuestUSize, MutPtr};
 use crate::objc::{id, msg, msg_class};
 use crate::Environment;
 
@@ -152,6 +153,24 @@ fn CFStringCreateWithCString(
     let encoding = CFStringConvertEncodingToNSStringEncoding(env, encoding);
     let ns_string: id = msg_class![env; NSString alloc];
     msg![env; ns_string initWithCString:c_string encoding:encoding]
+}
+
+fn CFStringCreateWithCStringNoCopy(
+    env: &mut Environment,
+    allocator: CFAllocatorRef,
+    c_string: ConstPtr<u8>,
+    encoding: CFStringEncoding,
+    deallocator: CFAllocatorRef,
+) -> CFStringRef {
+    assert!(allocator == kCFAllocatorDefault || env.mem.read(allocator).is_system_default()); // unimplemented
+    assert!(env.mem.read(deallocator).is_null()); // unimplemented
+    let encoding = CFStringConvertEncodingToNSStringEncoding(env, encoding);
+    let c_len: GuestUSize = strlen(env, c_string);
+    let ns_string: id = msg_class![env; NSString alloc];
+    // Docs of CFStringCreateWithCStringNoCopy says caller should never assume
+    // that the object is using the external buffer (it could be copied or even
+    // dumped). So we can "safely" invoke a method which does copy!
+    msg![env; ns_string initWithBytes:c_string length:c_len encoding:encoding]
 }
 
 fn CFStringCreateWithFormat(
@@ -426,6 +445,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CFStringCreateMutableCopy(_, _, _)),
     export_c_func!(CFStringCreateWithBytes(_, _, _, _, _)),
     export_c_func!(CFStringCreateWithCString(_, _, _)),
+    export_c_func!(CFStringCreateWithCStringNoCopy(_, _, _, _)),
     export_c_func!(CFStringCreateWithFormat(_, _, _, _)),
     export_c_func!(CFStringCreateWithFormatAndArguments(_, _, _, _)),
     export_c_func!(CFStringCreateWithSubstring(_, _, _)),
