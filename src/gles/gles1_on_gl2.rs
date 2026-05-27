@@ -144,7 +144,7 @@ const GET_PARAMS: ParamTable = ParamTable(&[
     (gl21::ALPHA_BITS, ParamType::Int, 1),
     (gl21::ALPHA_TEST, ParamType::Boolean, 1),
     (gl21::ALPHA_TEST_FUNC, ParamType::Int, 1),
-    // TODO: ALPHA_TEST_REF (has special type conversion behavior)
+    (gl21::ALPHA_TEST_REF, ParamType::FloatSpecial, 1), // TODO correct type
     (gl21::ARRAY_BUFFER_BINDING, ParamType::Int, 1),
     (gl21::BLEND, ParamType::Boolean, 1),
     (gl21::BLEND_DST, ParamType::Int, 1),
