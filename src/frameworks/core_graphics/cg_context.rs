@@ -25,6 +25,9 @@ use crate::Environment;
 
 type CGInterpolationQuality = i32;
 
+type CGTextDrawingMode = i32;
+const kCGTextFill: CGTextDrawingMode = 0;
+
 pub const CLASSES: ClassExports = objc_classes! {
 
 (env, this, _cmd);
@@ -244,6 +247,14 @@ fn CGContextSetFontSize(env: &mut Environment, context: CGContextRef, size: CGFl
         .font_size = size;
 }
 
+fn CGContextSetTextDrawingMode(
+    _env: &mut Environment,
+    _context: CGContextRef,
+    mode: CGTextDrawingMode,
+) {
+    assert_eq!(mode, kCGTextFill); // TODO: support other modes
+}
+
 fn CGContextShowGlyphsAtPoint(
     env: &mut Environment,
     context: CGContextRef,
@@ -298,5 +309,6 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSetAllowsAntialiasing(_, _)),
     export_c_func!(CGContextSetFont(_, _)),
     export_c_func!(CGContextSetFontSize(_, _)),
+    export_c_func!(CGContextSetTextDrawingMode(_, _)),
     export_c_func!(CGContextShowGlyphsAtPoint(_, _, _, _, _)),
 ];
