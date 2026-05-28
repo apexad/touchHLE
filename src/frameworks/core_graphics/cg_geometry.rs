@@ -277,7 +277,7 @@ fn CGRectIntersectsRect(_env: &mut Environment, rect1: CGRect, rect2: CGRect) ->
             <= (rect1.origin.y + rect1.size.height).min(rect2.origin.y + rect2.size.height)
 }
 
-fn CGRectIntersection(_env: &mut Environment, rect1: CGRect, rect2: CGRect) -> CGRect {
+pub(super) fn CGRectIntersection(_env: &mut Environment, rect1: CGRect, rect2: CGRect) -> CGRect {
     if rect1 == CGRectNull || rect2 == CGRectNull {
         return CGRectNull;
     }
@@ -385,7 +385,7 @@ fn CGRectInset(_env: &mut Environment, rect: CGRect, dx: CGFloat, dy: CGFloat) -
     res
 }
 
-fn CGRectIntegral(_env: &mut Environment, rect: CGRect) -> CGRect {
+pub(super) fn CGRectIntegral(_env: &mut Environment, rect: CGRect) -> CGRect {
     if rect == CGRectNull {
         return rect;
     }
