@@ -223,6 +223,13 @@ fn CGContextSetInterpolationQuality(
         quality
     );
 }
+fn CGContextSetAllowsAntialiasing(_env: &mut Environment, context: CGContextRef, allow: bool) {
+    log!(
+        "TODO: CGContextSetAllowsAntialiasing({:?}, {})",
+        context,
+        allow
+    );
+}
 
 fn CGContextSetFont(env: &mut Environment, context: CGContextRef, font: CGFontRef) {
     CGFontRetain(env, font);
@@ -288,6 +295,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSaveGState(_)),
     export_c_func!(CGContextRestoreGState(_)),
     export_c_func!(CGContextSetInterpolationQuality(_, _)),
+    export_c_func!(CGContextSetAllowsAntialiasing(_, _)),
     export_c_func!(CGContextSetFont(_, _)),
     export_c_func!(CGContextSetFontSize(_, _)),
     export_c_func!(CGContextShowGlyphsAtPoint(_, _, _, _, _)),
