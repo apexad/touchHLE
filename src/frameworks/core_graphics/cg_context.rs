@@ -5,7 +5,7 @@
  */
 //! `CGContext.h`
 
-use super::cg_affine_transform::CGAffineTransform;
+use super::cg_affine_transform::{CGAffineTransform, CGAffineTransformIdentity};
 use super::cg_image::CGImageRef;
 use super::{cg_bitmap_context, cg_color, CGFloat, CGRect, CGSize};
 use crate::dyld::{export_c_func, FunctionExports};
@@ -78,6 +78,8 @@ pub(super) struct CGContextHostObject {
     /// Current transform.
     pub(super) transform: CGAffineTransform,
     pub(super) blend_mode: CGBlendMode,
+    /// Text transform.
+    pub(super) text_transform: Option<CGAffineTransform>,
     pub(super) state_stack: Vec<ContextState>,
 }
 impl HostObject for CGContextHostObject {}
@@ -308,6 +310,17 @@ fn CGContextSetTextDrawingMode(
     assert_eq!(mode, kCGTextFill); // TODO: support other modes
 }
 
+fn CGContextSetTextMatrix(
+    env: &mut Environment,
+    context: CGContextRef,
+    transform: CGAffineTransform,
+) {
+    log_dbg!("CGContextSetTextMatrix({:?})", transform);
+    env.objc
+        .borrow_mut::<CGContextHostObject>(context)
+        .text_transform = Some(transform);
+}
+
 fn CGContextShowGlyphsAtPoint(
     env: &mut Environment,
     context: CGContextRef,
@@ -324,21 +337,32 @@ fn CGContextShowGlyphsAtPoint(
 
     let font = env.objc.borrow::<CGContextHostObject>(context).font;
     let font_size = env.objc.borrow::<CGContextHostObject>(context).font_size;
+    let text_transform = env
+        .objc
+        .borrow::<CGContextHostObject>(context)
+        .text_transform
+        .unwrap_or(CGAffineTransformIdentity);
 
     let font = &env.objc.borrow::<CGFontHostObject>(font).font;
 
     let mut drawer = CGBitmapContextDrawer::new(&env.objc, &mut env.mem, context);
     let fill_color = drawer.rgb_fill_color();
 
-    font.draw_glyphs(font_size, glyph_ids, (x, y), |raster_glyph| {
-        uikit::ui_font::draw_font_glyph(
-            &mut drawer,
-            raster_glyph,
-            fill_color,
-            /* clip_x: */ None,
-            /* clip_y: */ None,
-        )
-    });
+    font.draw_glyphs(
+        font_size,
+        glyph_ids,
+        (x, y),
+        text_transform,
+        |raster_glyph| {
+            uikit::ui_font::draw_font_glyph(
+                &mut drawer,
+                raster_glyph,
+                fill_color,
+                /* clip_x: */ None,
+                /* clip_y: */ None,
+            )
+        },
+    );
 }
 
 pub const FUNCTIONS: FunctionExports = &[
@@ -366,5 +390,6 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSetFont(_, _)),
     export_c_func!(CGContextSetFontSize(_, _)),
     export_c_func!(CGContextSetTextDrawingMode(_, _)),
+    export_c_func!(CGContextSetTextMatrix(_, _)),
     export_c_func!(CGContextShowGlyphsAtPoint(_, _, _, _, _)),
 ];

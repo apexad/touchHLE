@@ -89,6 +89,7 @@ pub fn CGBitmapContextCreate(
         font_size: 14.0,
         transform: CGAffineTransformIdentity,
         blend_mode: kCGBlendModeNormal,
+        text_transform: None,
         state_stack: Vec::new(),
     };
     let isa = env
