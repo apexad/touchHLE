@@ -307,6 +307,15 @@ void CGColorSpaceRelease(CGColorSpaceRef cs);
 
 typedef struct _CGContext *CGContextRef;
 
+typedef enum {
+  kCGBlendModeNormal = 0,
+  kCGBlendModeMultiply = 1,
+  kCGBlendModeScreen = 2,
+  kCGBlendModeOverlay = 3,
+  kCGBlendModeDarken = 4,
+  kCGBlendModeLighten = 5,
+} CGBlendMode;
+
 #define kCGImageAlphaPremultipliedLast 1
 
 CGContextRef CGBitmapContextCreate(void *data, size_t width, size_t height,
@@ -320,6 +329,7 @@ void CGContextRestoreGState(CGContextRef c);
 void CGContextSetRGBFillColor(CGContextRef c, CGFloat r, CGFloat g, CGFloat b,
                               CGFloat a);
 void CGContextFillRect(CGContextRef c, CGRect rect);
+void CGContextSetBlendMode(CGContextRef c, CGBlendMode mode);
 void CGContextTranslateCTM(CGContextRef c, CGFloat tx, CGFloat ty);
 void CGContextScaleCTM(CGContextRef c, CGFloat sx, CGFloat sy);
 void CGContextRotateCTM(CGContextRef c, CGFloat angle);
@@ -336,6 +346,10 @@ void CGContextSetFont(CGContextRef c, CGFontRef font);
 void CGContextSetFontSize(CGContextRef c, CGFloat size);
 void CGContextShowGlyphsAtPoint(CGContextRef c, CGFloat x, CGFloat y,
                                 const CGGlyph *glyphs, size_t count);
+
+// `UIGraphics.h`
+
+CGContextRef UIGraphicsGetCurrentContext(void);
 
 // Core Animation
 typedef NSString *CAMediaTimingFunctionName;

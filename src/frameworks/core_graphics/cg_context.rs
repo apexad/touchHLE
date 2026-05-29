@@ -28,6 +28,10 @@ type CGInterpolationQuality = i32;
 type CGTextDrawingMode = i32;
 const kCGTextFill: CGTextDrawingMode = 0;
 
+pub type CGBlendMode = i32;
+pub const kCGBlendModeNormal: CGBlendMode = 0;
+pub const kCGBlendModeMultiply: CGBlendMode = 1;
+
 pub const CLASSES: ClassExports = objc_classes! {
 
 (env, this, _cmd);
@@ -54,10 +58,11 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 // TODO: keep more states saved once they are implemented
 type ContextState = (
-    (CGFloat, CGFloat, CGFloat, CGFloat),
-    CGAffineTransform,
-    CGFontRef,
-    CGFloat,
+    (CGFloat, CGFloat, CGFloat, CGFloat), // RGB fill color
+    CGAffineTransform,                    // transform
+    CGFontRef,                            // font
+    CGFloat,                              // font size
+    CGBlendMode,                          // blend mode
 );
 
 pub(super) struct CGContextHostObject {
@@ -67,6 +72,7 @@ pub(super) struct CGContextHostObject {
     pub(super) font_size: CGFloat,
     /// Current transform.
     pub(super) transform: CGAffineTransform,
+    pub(super) blend_mode: CGBlendMode,
     pub(super) state_stack: Vec<ContextState>,
 }
 impl HostObject for CGContextHostObject {}
@@ -88,6 +94,12 @@ pub fn CGContextRetain(env: &mut Environment, c: CGContextRef) -> CGContextRef {
     } else {
         c
     }
+}
+
+fn CGContextSetBlendMode(env: &mut Environment, context: CGContextRef, blend_mode: CGBlendMode) {
+    env.objc
+        .borrow_mut::<CGContextHostObject>(context)
+        .blend_mode = blend_mode;
 }
 
 fn CGContextSetFillColorWithColor(env: &mut Environment, context: CGContextRef, color: CGColorRef) {
@@ -196,6 +208,7 @@ fn CGContextSaveGState(env: &mut Environment, context: CGContextRef) {
         host_obj.transform,
         host_obj.font,
         host_obj.font_size,
+        host_obj.blend_mode,
     ));
     CGFontRetain(env, env.objc.borrow::<CGContextHostObject>(context).font);
 }
@@ -213,6 +226,7 @@ fn CGContextRestoreGState(env: &mut Environment, context: CGContextRef) {
     host_obj.transform = state.1;
     host_obj.font = state.2;
     host_obj.font_size = state.3;
+    host_obj.blend_mode = state.4;
 }
 
 fn CGContextSetInterpolationQuality(
@@ -291,6 +305,7 @@ fn CGContextShowGlyphsAtPoint(
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextRetain(_)),
     export_c_func!(CGContextRelease(_)),
+    export_c_func!(CGContextSetBlendMode(_, _)),
     export_c_func!(CGContextSetFillColorWithColor(_, _)),
     export_c_func!(CGContextSetRGBFillColor(_, _, _, _, _)),
     export_c_func!(CGContextSetGrayFillColor(_, _, _)),

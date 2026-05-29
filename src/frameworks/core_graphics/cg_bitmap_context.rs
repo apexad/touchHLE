@@ -9,7 +9,10 @@ use super::cg_affine_transform::{CGAffineTransform, CGAffineTransformIdentity};
 use super::cg_color_space::{
     kCGColorSpaceGenericGray, kCGColorSpaceGenericRGB, CGColorSpaceHostObject, CGColorSpaceRef,
 };
-use super::cg_context::{CGContextHostObject, CGContextRef, CGContextSubclass};
+use super::cg_context::{
+    kCGBlendModeMultiply, kCGBlendModeNormal, CGBlendMode, CGContextHostObject, CGContextRef,
+    CGContextSubclass,
+};
 use super::cg_image::{
     self, kCGBitmapAlphaInfoMask, kCGBitmapByteOrderMask, kCGImageAlphaFirst, kCGImageAlphaLast,
     kCGImageAlphaNone, kCGImageAlphaNoneSkipFirst, kCGImageAlphaNoneSkipLast, kCGImageAlphaOnly,
@@ -85,6 +88,7 @@ pub fn CGBitmapContextCreate(
         font: Ptr::null(),
         font_size: 17.0,
         transform: CGAffineTransformIdentity,
+        blend_mode: kCGBlendModeNormal,
         state_stack: Vec::new(),
     };
     let isa = env
@@ -211,35 +215,51 @@ fn get_pixels<'a>(data: &CGBitmapContextData, mem: &'a mut Mem) -> &'a mut [u8] 
     mem.bytes_at_mut(data.data.cast(), pixel_data_size)
 }
 
-fn blend_alpha(bg: f32, fg: f32) -> f32 {
-    // Alpha is blended the same way in
-    // premultiplied and straight representation.
-    fg + bg * (1.0 - fg)
-}
-
-/// Blends two RGBA non gamma-encoded values, with straight alpha.
-fn blend_straight(bg: (f32, f32, f32, f32), fg: (f32, f32, f32, f32)) -> (f32, f32, f32, f32) {
+/// Blends two RGBA non gamma-encoded values, with straight alpha,
+/// using a blend mode.
+fn blend_straight(
+    bg: (f32, f32, f32, f32),
+    fg: (f32, f32, f32, f32),
+    blend_mode: CGBlendMode,
+) -> (f32, f32, f32, f32) {
+    assert_eq!(blend_mode, kCGBlendModeNormal); // TODO
     if fg.3 == 0.0 {
         // If fg.3 == 0.0 we attempt to blend fully transparent color.
         bg
     } else {
-        let new_a = blend_alpha(bg.3, fg.3); // Can't be 0 if fg.3 != 0
+        let neg_fg_a = 1.0 - fg.3;
+        let new_a = fg.3 + bg.3 * neg_fg_a; // Can't be 0 if fg.3 != 0
         (
-            (fg.0 * fg.3 + bg.0 * bg.3 * (1.0 - fg.3)) / new_a,
-            (fg.1 * fg.3 + bg.1 * bg.3 * (1.0 - fg.3)) / new_a,
-            (fg.2 * fg.3 + bg.2 * bg.3 * (1.0 - fg.3)) / new_a,
+            (fg.0 * fg.3 + bg.0 * bg.3 * neg_fg_a) / new_a,
+            (fg.1 * fg.3 + bg.1 * bg.3 * neg_fg_a) / new_a,
+            (fg.2 * fg.3 + bg.2 * bg.3 * neg_fg_a) / new_a,
             new_a,
         )
     }
 }
 
-/// Blends two RGBA non gamma-encoded values, with premultiplied alpha.
-fn blend_premultiplied(bg: (f32, f32, f32, f32), fg: (f32, f32, f32, f32)) -> (f32, f32, f32, f32) {
+/// Blends two RGBA non gamma-encoded values, with premultiplied alpha,
+/// using a blend mode.
+/// See [Blending](https://www.w3.org/TR/compositing-1/#blending) for details.
+fn blend_premultiplied(
+    bg: (f32, f32, f32, f32),
+    fg: (f32, f32, f32, f32),
+    blend_mode: CGBlendMode,
+) -> (f32, f32, f32, f32) {
+    // Blend
+    let blend_res = match blend_mode {
+        kCGBlendModeNormal => (bg.3 * fg.0, bg.3 * fg.1, bg.3 * fg.2),
+        kCGBlendModeMultiply => (bg.0 * fg.0, bg.1 * fg.1, bg.2 * fg.2),
+        _ => unimplemented!("blend mode {}", blend_mode),
+    };
+    // Compose
+    let neg_bg_a = 1.0 - bg.3;
+    let neg_fg_a = 1.0 - fg.3;
     (
-        fg.0 + bg.0 * (1.0 - fg.3),
-        fg.1 + bg.1 * (1.0 - fg.3),
-        fg.2 + bg.2 * (1.0 - fg.3),
-        blend_alpha(bg.3, fg.3),
+        fg.0 * neg_bg_a + blend_res.0 + bg.0 * neg_fg_a,
+        fg.1 * neg_bg_a + blend_res.1 + bg.1 * neg_fg_a,
+        fg.2 * neg_bg_a + blend_res.2 + bg.2 * neg_fg_a,
+        fg.3 + bg.3 * neg_fg_a,
     )
 }
 
@@ -306,6 +326,7 @@ fn put_pixel(
     coords: (i32, i32),
     pixel: (CGFloat, CGFloat, CGFloat, CGFloat),
     blend: bool,
+    blend_mode: CGBlendMode,
 ) {
     let (x, y) = coords;
     if x < 0 || y < 0 {
@@ -329,12 +350,20 @@ fn put_pixel(
     // gamma encoding.
     let (r, g, b, a) = if blend {
         match data.alpha_info {
-            kCGImageAlphaLast | kCGImageAlphaFirst => blend_straight(bg_pixel, pixel),
+            kCGImageAlphaLast | kCGImageAlphaFirst => blend_straight(bg_pixel, pixel, blend_mode),
             kCGImageAlphaPremultipliedLast | kCGImageAlphaPremultipliedFirst => {
-                blend_premultiplied(bg_pixel, pixel)
+                blend_premultiplied(bg_pixel, pixel, blend_mode)
             }
-            kCGImageAlphaOnly => (pixel.0, pixel.1, pixel.2, blend_alpha(bg_pixel.3, pixel.3)),
-            _ => pixel,
+            kCGImageAlphaOnly => (
+                pixel.0,
+                pixel.1,
+                pixel.2,
+                pixel.3 + bg_pixel.3 * (1.0 - pixel.3),
+            ),
+            _ => {
+                assert_eq!(blend_mode, kCGBlendModeNormal); // TODO
+                pixel
+            }
         }
     } else {
         pixel
@@ -363,6 +392,7 @@ fn put_pixel(
 pub struct CGBitmapContextDrawer<'a> {
     bitmap_info: CGBitmapContextData,
     rgb_fill_color: (CGFloat, CGFloat, CGFloat, CGFloat),
+    blend_mode: CGBlendMode,
     transform: CGAffineTransform,
     pixels: &'a mut [u8],
 }
@@ -376,6 +406,7 @@ impl CGBitmapContextDrawer<'_> {
             subclass: CGContextSubclass::CGBitmapContext(bitmap_info),
             rgb_fill_color,
             transform,
+            blend_mode,
             ..
         } = objc.borrow(context);
 
@@ -384,6 +415,7 @@ impl CGBitmapContextDrawer<'_> {
         CGBitmapContextDrawer {
             bitmap_info,
             rgb_fill_color,
+            blend_mode,
             transform,
             pixels,
         }
@@ -421,7 +453,14 @@ impl CGBitmapContextDrawer<'_> {
         color: (CGFloat, CGFloat, CGFloat, CGFloat),
         blend: bool,
     ) {
-        put_pixel(&self.bitmap_info, self.pixels, coords, color, blend)
+        put_pixel(
+            &self.bitmap_info,
+            self.pixels,
+            coords,
+            color,
+            blend,
+            self.blend_mode,
+        )
     }
 
     /// Takes a [CGRect] and applies the current transform to it, and iterates
@@ -491,6 +530,7 @@ fn test_iter_transformed_pixels() {
                 alpha_info: 0,
             },
             rgb_fill_color: (0.0, 0.0, 0.0, 0.0),
+            blend_mode: kCGBlendModeNormal,
             transform,
             pixels: &mut [],
         }
