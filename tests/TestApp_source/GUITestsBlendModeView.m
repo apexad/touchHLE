@@ -9,13 +9,17 @@
 #include "GUITestsAppDelegate.h"
 #include "GUITestsBlendModeView.h"
 
-#define NUM_TESTS 2
+#define NUM_TESTS 5
 
-// Filled with a yellow background and a cyan overlay rectangle. The blend mode
-// chosen for the overlay determines the visible color where the two rectangles
-// intersect:
-//   - kCGBlendModeNormal:   the overlap shows the overlay color (cyan).
-//   - kCGBlendModeMultiply: the overlap shows yellow * cyan = green.
+// Filled with a yellow base rectangle and a cyan overlay rectangle on a gray
+// background. The blend mode chosen for the overlay determines the visible
+// color where the two rectangles intersect. With base = (1, 1, 0) and source =
+// (0, 1, 1):
+//   - kCGBlendModeNormal:   overlap = source         = (0, 1, 1) cyan
+//   - kCGBlendModeMultiply: overlap = base * source  = (0, 1, 0) green
+//   - kCGBlendModeScreen:   overlap = 1-(1-b)*(1-s)  = (1, 1, 1) white
+//   - kCGBlendModeDarken:   overlap = min(b, s)      = (0, 1, 0) green
+//   - kCGBlendModeLighten:  overlap = max(b, s)      = (1, 1, 1) white
 @interface GUITestsBlendModeTestArea : UIView {
 @public
   CGBlendMode blendMode;
@@ -147,6 +151,31 @@ NSUInteger blendTestNum;
   blendTestArea->blendMode = kCGBlendModeMultiply;
   expectationLabel.text =
       [NSString stringWithUTF8String:"Multiply: overlap is green"];
+}
+
+// Test 3: kCGBlendModeScreen. Per-channel screen blend:
+// 1 - (1 - base) * (1 - src) = 1 - (1-1,1-1,1-0)*(1-0,1-1,1-1)
+// = (1, 1, 1), i.e. white.
+- (void)test3 {
+  blendTestArea->blendMode = kCGBlendModeScreen;
+  expectationLabel.text =
+      [NSString stringWithUTF8String:"Screen: overlap is white"];
+}
+
+// Test 4: kCGBlendModeDarken. Per-channel min(base, src):
+// min((1, 1, 0), (0, 1, 1)) = (0, 1, 0), i.e. green.
+- (void)test4 {
+  blendTestArea->blendMode = kCGBlendModeDarken;
+  expectationLabel.text =
+      [NSString stringWithUTF8String:"Darken: overlap is green"];
+}
+
+// Test 5: kCGBlendModeLighten. Per-channel max(base, src):
+// max((1, 1, 0), (0, 1, 1)) = (1, 1, 1), i.e. white.
+- (void)test5 {
+  blendTestArea->blendMode = kCGBlendModeLighten;
+  expectationLabel.text =
+      [NSString stringWithUTF8String:"Lighten: overlap is white"];
 }
 
 @end

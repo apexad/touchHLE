@@ -31,6 +31,11 @@ const kCGTextFill: CGTextDrawingMode = 0;
 pub type CGBlendMode = i32;
 pub const kCGBlendModeNormal: CGBlendMode = 0;
 pub const kCGBlendModeMultiply: CGBlendMode = 1;
+pub const kCGBlendModeScreen: CGBlendMode = 2;
+#[allow(unused)]
+pub const kCGBlendModeOverlay: CGBlendMode = 3;
+pub const kCGBlendModeDarken: CGBlendMode = 4;
+pub const kCGBlendModeLighten: CGBlendMode = 5;
 
 pub const CLASSES: ClassExports = objc_classes! {
 

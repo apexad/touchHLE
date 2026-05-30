@@ -10,8 +10,8 @@ use super::cg_color_space::{
     kCGColorSpaceGenericGray, kCGColorSpaceGenericRGB, CGColorSpaceHostObject, CGColorSpaceRef,
 };
 use super::cg_context::{
-    kCGBlendModeMultiply, kCGBlendModeNormal, CGBlendMode, CGContextHostObject, CGContextRef,
-    CGContextSubclass,
+    kCGBlendModeDarken, kCGBlendModeLighten, kCGBlendModeMultiply, kCGBlendModeNormal,
+    kCGBlendModeScreen, CGBlendMode, CGContextHostObject, CGContextRef, CGContextSubclass,
 };
 use super::cg_image::{
     self, kCGBitmapAlphaInfoMask, kCGBitmapByteOrderMask, kCGImageAlphaFirst, kCGImageAlphaLast,
@@ -250,6 +250,21 @@ fn blend_premultiplied(
     let blend_res = match blend_mode {
         kCGBlendModeNormal => (bg.3 * fg.0, bg.3 * fg.1, bg.3 * fg.2),
         kCGBlendModeMultiply => (bg.0 * fg.0, bg.1 * fg.1, bg.2 * fg.2),
+        kCGBlendModeScreen => (
+            fg.3 * bg.0 + bg.3 * fg.0 - bg.0 * fg.0,
+            fg.3 * bg.1 + bg.3 * fg.1 - bg.1 * fg.1,
+            fg.3 * bg.2 + bg.3 * fg.2 - bg.2 * fg.2,
+        ),
+        kCGBlendModeDarken => (
+            (fg.3 * bg.0).min(bg.3 * fg.0),
+            (fg.3 * bg.1).min(bg.3 * fg.1),
+            (fg.3 * bg.2).min(bg.3 * fg.2),
+        ),
+        kCGBlendModeLighten => (
+            (fg.3 * bg.0).max(bg.3 * fg.0),
+            (fg.3 * bg.1).max(bg.3 * fg.1),
+            (fg.3 * bg.2).max(bg.3 * fg.2),
+        ),
         _ => unimplemented!("blend mode {}", blend_mode),
     };
     // Compose
