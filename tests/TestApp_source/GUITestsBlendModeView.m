@@ -9,7 +9,7 @@
 #include "GUITestsAppDelegate.h"
 #include "GUITestsBlendModeView.h"
 
-#define NUM_TESTS 6
+#define NUM_TESTS 7
 
 // Filled with a yellow base rectangle and a cyan overlay rectangle on a gray
 // background. The blend mode chosen for the overlay determines the visible
@@ -34,6 +34,7 @@
 @public
   CGBlendMode blendMode;
   BOOL clearBackdropTest;
+  BOOL midToneTest;
 }
 @end
 
@@ -55,19 +56,35 @@
   }
 
   // Background fill: gray, so the surrounding test area color is visible too.
-  CGContextSetRGBFillColor(context, 0.5, 0.5, 0.5, 1.0);
+  // For the mid-tone test, use black so the overlap region (lighter than the
+  // base) is clearly distinguishable.
+  if (midToneTest) {
+    CGContextSetRGBFillColor(context, 0.0, 0.0, 0.0, 1.0);
+  } else {
+    CGContextSetRGBFillColor(context, 0.5, 0.5, 0.5, 1.0);
+  }
   CGContextFillRect(context, bounds);
 
-  // First (base) rectangle: opaque yellow in the upper-left.
+  // First (base) rectangle: opaque yellow in the upper-left (or sRGB 0.7 gray
+  // for the mid-tone test — chosen so that two such values screen-blended in
+  // linear space exceed 1.0 and force a clamp on a buggy implementation).
   CGContextSetBlendMode(context, kCGBlendModeNormal);
-  CGContextSetRGBFillColor(context, 1.0, 1.0, 0.0, 1.0);
+  if (midToneTest) {
+    CGContextSetRGBFillColor(context, 0.7, 0.7, 0.7, 1.0);
+  } else {
+    CGContextSetRGBFillColor(context, 1.0, 1.0, 0.0, 1.0);
+  }
   CGContextFillRect(context, CGRectMake(40, 40, 180, 180));
 
-  // Second (overlay) rectangle: opaque cyan, shifted so it overlaps the
-  // yellow rectangle. The blend mode under test controls how the overlap
-  // composites.
+  // Second (overlay) rectangle: opaque cyan (or the same sRGB 0.7 gray for
+  // the mid-tone test), shifted so it overlaps the base rectangle. The blend
+  // mode under test controls how the overlap composites.
   CGContextSetBlendMode(context, blendMode);
-  CGContextSetRGBFillColor(context, 0.0, 1.0, 1.0, 1.0);
+  if (midToneTest) {
+    CGContextSetRGBFillColor(context, 0.7, 0.7, 0.7, 1.0);
+  } else {
+    CGContextSetRGBFillColor(context, 0.0, 1.0, 1.0, 1.0);
+  }
   CGContextFillRect(context, CGRectMake(120, 120, 180, 180));
 
   // Restore the default blend mode so later drawing isn't affected.
@@ -215,6 +232,19 @@ NSUInteger blendTestNum;
   blendTestArea->clearBackdropTest = YES;
   expectationLabel.text =
       [NSString stringWithUTF8String:"Normal: uniform 70% gray (no stripe)"];
+}
+
+// Test 7: kCGBlendModeScreen with mid-tone colors. With base = src = sRGB 0.7
+// (linear ≈ 0.456), the correct screen formula 2·x − x² yields ≈ 0.704 in
+// linear space, which gamma-encodes back to sRGB ≈ 0.85: the overlap should
+// be a clearly lighter shade than the sRGB 0.7 base/overlay, but distinctly
+// NOT pure white.
+- (void)test7 {
+  blendTestArea->blendMode = kCGBlendModeScreen;
+  blendTestArea->midToneTest = YES;
+  expectationLabel.text =
+      [NSString stringWithUTF8String:"Screen: overlap is light gray "
+                                     "(not white)"];
 }
 
 @end
