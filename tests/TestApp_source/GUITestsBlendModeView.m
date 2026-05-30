@@ -9,7 +9,7 @@
 #include "GUITestsAppDelegate.h"
 #include "GUITestsBlendModeView.h"
 
-#define NUM_TESTS 5
+#define NUM_TESTS 6
 
 // Filled with a yellow base rectangle and a cyan overlay rectangle on a gray
 // background. The blend mode chosen for the overlay determines the visible
@@ -20,9 +20,20 @@
 //   - kCGBlendModeScreen:   overlap = 1-(1-b)*(1-s)  = (1, 1, 1) white
 //   - kCGBlendModeDarken:   overlap = min(b, s)      = (0, 1, 0) green
 //   - kCGBlendModeLighten:  overlap = max(b, s)      = (1, 1, 1) white
+//
+// When `clearBackdropTest` is set, the gray background fill and the yellow
+// base rectangle are skipped, and the top half of the view is filled with an
+// opaque 70% gray via `drawRect:` (going through `blend_premultiplied` with a
+// backdrop alpha of 0, because `clearsContextBeforeDrawing` has just zeroed
+// the bitmap). The bottom half is left untouched so the cleared (transparent)
+// pixels let the layer's GL-rendered backgroundColor show through directly.
+// When `midToneTest` is set, the gray background fill is replaced with black
+// and both the base and overlay rectangles are drawn in opaque sRGB 0.7 gray,
+// so the configured blend mode is exercised on mid-tone (non-{0,1}) channels.
 @interface GUITestsBlendModeTestArea : UIView {
 @public
   CGBlendMode blendMode;
+  BOOL clearBackdropTest;
 }
 @end
 
@@ -30,6 +41,18 @@
 - (void)drawRect:(CGRect)rect {
   CGContextRef context = UIGraphicsGetCurrentContext();
   CGRect bounds = [self bounds];
+
+  if (clearBackdropTest) {
+    // Fill ONLY the top half with the same opaque 70% gray as the layer's
+    // backgroundColor. The bottom half stays untouched so the cleared bitmap
+    // lets the backgroundColor show through unchanged.
+    CGContextSetBlendMode(context, blendMode);
+    CGContextSetRGBFillColor(context, 0.7, 0.7, 0.7, 1.0);
+    CGContextFillRect(
+        context, CGRectMake(0, 0, bounds.size.width, bounds.size.height / 2));
+    CGContextSetBlendMode(context, kCGBlendModeNormal);
+    return;
+  }
 
   // Background fill: gray, so the surrounding test area color is visible too.
   CGContextSetRGBFillColor(context, 0.5, 0.5, 0.5, 1.0);
@@ -176,6 +199,22 @@ NSUInteger blendTestNum;
   blendTestArea->blendMode = kCGBlendModeLighten;
   expectationLabel.text =
       [NSString stringWithUTF8String:"Lighten: overlap is white"];
+}
+
+// Test 6: kCGBlendModeNormal into a context whose backdrop alpha is 0. The
+// top half of the test area is filled with an opaque 70% gray via drawRect:
+// (going through blend_premultiplied with αb = 0), and the bottom half is
+// left untouched so the layer's GL-rendered backgroundColor - set to the
+// same 70% gray here - shows through.
+- (void)test6 {
+  blendTestArea.backgroundColor = [UIColor colorWithRed:0.7
+                                                  green:0.7
+                                                   blue:0.7
+                                                  alpha:1.0];
+  blendTestArea->blendMode = kCGBlendModeNormal;
+  blendTestArea->clearBackdropTest = YES;
+  expectationLabel.text =
+      [NSString stringWithUTF8String:"Normal: uniform 70% gray (no stripe)"];
 }
 
 @end
