@@ -234,10 +234,8 @@ NSUInteger blendTestNum;
       [NSString stringWithUTF8String:"Normal: uniform 70% gray (no stripe)"];
 }
 
-// Test 7: kCGBlendModeScreen with mid-tone colors. With base = src = sRGB 0.7
-// (linear ≈ 0.456), the correct screen formula 2·x − x² yields ≈ 0.704 in
-// linear space, which gamma-encodes back to sRGB ≈ 0.85: the overlap should
-// be a clearly lighter shade than the sRGB 0.7 base/overlay, but distinctly
+// Test 7: kCGBlendModeScreen with mid-tone colors. The overlap should be
+// a clearly lighter shade than the sRGB 0.7 base/overlay, but distinctly
 // NOT pure white.
 - (void)test7 {
   blendTestArea->blendMode = kCGBlendModeScreen;
