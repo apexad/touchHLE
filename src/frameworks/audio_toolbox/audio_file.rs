@@ -62,6 +62,7 @@ const kAudioFileCAFType: AudioFileTypeID = fourcc(b"caff");
 
 /// Usually a FourCC.
 type AudioFilePropertyID = u32;
+pub const kAudioFilePropertyFileFormat: AudioFilePropertyID = fourcc(b"ffmt");
 pub const kAudioFilePropertyDataFormat: AudioFilePropertyID = fourcc(b"dfmt");
 const kAudioFilePropertyAudioDataByteCount: AudioFilePropertyID = fourcc(b"bcnt");
 const kAudioFilePropertyAudioDataPacketCount: AudioFilePropertyID = fourcc(b"pcnt");
@@ -218,6 +219,7 @@ pub fn AudioFileOpenWithCallbacks(
 
 pub(super) fn property_size(property_id: AudioFilePropertyID) -> GuestUSize {
     match property_id {
+        kAudioFilePropertyFileFormat => guest_size_of::<u32>(),
         kAudioFilePropertyDataFormat => guest_size_of::<AudioStreamBasicDescription>(),
         kAudioFilePropertyAudioDataByteCount => guest_size_of::<u64>(),
         kAudioFilePropertyAudioDataPacketCount => guest_size_of::<u64>(),
@@ -271,7 +273,12 @@ pub fn AudioFileGetProperty(
 
     let required_size = property_size(in_property_id);
     if env.mem.read(io_data_size) != required_size {
-        log!("Warning: AudioFileGetProperty() failed");
+        log!(
+            "Warning: AudioFileGetProperty({}) failed, {} != {}",
+            debug_fourcc(in_property_id),
+            env.mem.read(io_data_size),
+            required_size
+        );
         return kAudioFileBadPropertySizeError;
     }
 
@@ -281,6 +288,17 @@ pub fn AudioFileGetProperty(
         .unwrap();
 
     match in_property_id {
+        kAudioFilePropertyFileFormat => {
+            let bundle_id = env.bundle.bundle_identifier();
+            if bundle_id.starts_with("com.ea.mirrorsedge.bv")
+                || bundle_id.starts_with("com.ea.mirrorsedge.inc")
+            {
+                log!("Applying game-specific hack for Mirror's Edge: returning WAVE for kAudioFilePropertyFileFormat in AudioFileGetProperty()");
+                env.mem.write(out_property_data.cast(), fourcc(b"WAVE"));
+            } else {
+                todo!()
+            }
+        }
         kAudioFilePropertyDataFormat => {
             let desc = AudioStreamBasicDescription::from_audio_description(
                 host_object.audio_file.audio_description(),
