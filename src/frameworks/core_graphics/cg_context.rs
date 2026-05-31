@@ -7,7 +7,7 @@
 
 use super::cg_affine_transform::CGAffineTransform;
 use super::cg_image::CGImageRef;
-use super::{cg_bitmap_context, cg_color, CGFloat, CGRect};
+use super::{cg_bitmap_context, cg_color, CGFloat, CGRect, CGSize};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::frameworks::core_foundation::{CFRelease, CFRetain, CFTypeRef};
 use crate::frameworks::core_graphics::cg_bitmap_context::{
@@ -153,6 +153,22 @@ fn CGContextSetRGBStrokeColor(
         g,
         b,
         a
+    );
+}
+
+fn CGContextSetShadowWithColor(
+    _env: &mut Environment,
+    context: CGContextRef,
+    offset: CGSize,
+    blur: CGFloat,
+    color: CGColorRef,
+) {
+    log!(
+        "TODO: CGContextSetShadowWithColor({:?}, {}, {}, {:?})",
+        context,
+        offset,
+        blur,
+        color
     );
 }
 
@@ -333,6 +349,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSetRGBFillColor(_, _, _, _, _)),
     export_c_func!(CGContextSetGrayFillColor(_, _, _)),
     export_c_func!(CGContextSetRGBStrokeColor(_, _, _, _, _)),
+    export_c_func!(CGContextSetShadowWithColor(_, _, _, _)),
     export_c_func!(CGContextFillRect(_, _)),
     export_c_func!(CGContextClearRect(_, _)),
     export_c_func!(CGContextClipToRect(_, _)),
