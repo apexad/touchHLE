@@ -138,6 +138,24 @@ fn CGContextSetGrayFillColor(
         .rgb_fill_color = color;
 }
 
+fn CGContextSetRGBStrokeColor(
+    _env: &mut Environment,
+    context: CGContextRef,
+    r: CGFloat,
+    g: CGFloat,
+    b: CGFloat,
+    a: CGFloat,
+) {
+    log!(
+        "TODO: CGContextSetRGBStrokeColor({:?}, {}, {}, {}, {})",
+        context,
+        r,
+        g,
+        b,
+        a
+    );
+}
+
 pub fn CGContextFillRect(env: &mut Environment, context: CGContextRef, rect: CGRect) {
     cg_bitmap_context::fill_rect(env, context, rect, /* clear: */ false);
 }
@@ -314,6 +332,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSetFillColorWithColor(_, _)),
     export_c_func!(CGContextSetRGBFillColor(_, _, _, _, _)),
     export_c_func!(CGContextSetGrayFillColor(_, _, _)),
+    export_c_func!(CGContextSetRGBStrokeColor(_, _, _, _, _)),
     export_c_func!(CGContextFillRect(_, _)),
     export_c_func!(CGContextClearRect(_, _)),
     export_c_func!(CGContextClipToRect(_, _)),
