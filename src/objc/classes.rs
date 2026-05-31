@@ -15,7 +15,7 @@ use super::{
     IMP, SEL,
 };
 use crate::mach_o::MachO;
-use crate::mem::{guest_size_of, ConstPtr, ConstVoidPtr, GuestUSize, Mem, Ptr, SafeRead};
+use crate::mem::{guest_size_of, ConstPtr, ConstVoidPtr, GuestUSize, Mem, MutPtr, Ptr, SafeRead};
 use crate::Environment;
 use std::collections::{HashMap, VecDeque};
 
@@ -127,6 +127,17 @@ struct category_t {
     _property_list: ConstVoidPtr, // property list (TODO)
 }
 unsafe impl SafeRead for category_t {}
+
+#[repr(C, packed)]
+pub struct objc_property {
+    // TODO: define fields?
+    _pad: u8,
+}
+unsafe impl SafeRead for objc_property {}
+
+/// An opaque type that represents an Objective-C declared property.
+#[allow(non_camel_case_types)]
+type objc_property_t = MutPtr<objc_property>;
 
 /// A template for a class defined with [objc_classes].
 ///
@@ -989,4 +1000,30 @@ pub(super) fn class_getInstanceSize(env: &mut Environment, cls: Class) -> GuestU
     } else {
         env.objc.borrow::<ClassHostObject>(cls).instance_size
     }
+}
+
+pub(super) fn class_getProperty(
+    env: &mut Environment,
+    cls: Class,
+    name: ConstPtr<u8>,
+) -> objc_property_t {
+    if cls == nil {
+        return Ptr::null();
+    }
+    let c_name = env.mem.cstr_at_utf8(name).unwrap();
+    let class_name_string = env.objc.get_class_name(cls).to_owned();
+    if class_name_string == "UIScreen" && c_name == "scale" {
+        // Even if [UIScreen scale] is implemented, we're not yet having a
+        // proper support for `objc_property_t`, so we prefer to return a NULL
+        // here (e.g. property is not declared).
+        // Some games (such as Mirror's Edge) check for those to conditionally
+        // apply some parameters depending on the iOS version without actually
+        // using the property.
+        // We also prefer to not define this as a game-specific hack, because
+        // some other EA games may rely on the same logic.
+        // TODO: support `objc_property_t` properly
+        log!("TODO: class_getProperty(UIScreen, scale) -> NULL");
+        return Ptr::null();
+    }
+    todo!()
 }
