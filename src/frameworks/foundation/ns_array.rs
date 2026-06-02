@@ -88,18 +88,23 @@ pub const CLASSES: ClassExports = objc_classes! {
     let array = from_vec(env, objects);
     autorelease(env, array)
 }
-+ (id)arrayWithObjects:(id)firstObj, ...args {
-    retain(env, firstObj);
-    let mut objects = vec![firstObj];
-    let mut varargs = args.start();
-    loop {
-        let next_arg: id = varargs.next(env);
-        if next_arg.is_null() {
-            break;
++ (id)arrayWithObjects:(id)first_obj, ...args {
+    let objects = if first_obj == nil {
+        vec![]
+    } else {
+        retain(env, first_obj);
+        let mut objects = vec![first_obj];
+        let mut varargs = args.start();
+        loop {
+            let next_arg: id = varargs.next(env);
+            if next_arg.is_null() {
+                break;
+            }
+            retain(env, next_arg);
+            objects.push(next_arg);
         }
-        retain(env, next_arg);
-        objects.push(next_arg);
-    }
+        objects
+    };
     let array = from_vec(env, objects);
     autorelease(env, array)
 }
