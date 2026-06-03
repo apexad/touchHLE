@@ -476,9 +476,10 @@ impl Write for GuestFile {
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             GuestFile::File(file) => file.flush(),
-            GuestFile::IpaBundleFile(file) => {
-                panic!("Attempt to flush a read-only file: {file:?}")
-            }
+            GuestFile::IpaBundleFile(file) => Err(std::io::Error::new(
+                std::io::ErrorKind::ReadOnlyFilesystem,
+                format!("Attempt to flush a read-only file: {file:?}"),
+            )),
             GuestFile::ResourceFile(file) => {
                 panic!("Attempt to flush a read-only file: {file:?}")
             }
