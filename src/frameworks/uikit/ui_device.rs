@@ -69,10 +69,14 @@ pub const CLASSES: ClassExports = objc_classes! {
 }
 
 - (())beginGeneratingDeviceOrientationNotifications {
-    log!("TODO: beginGeneratingDeviceOrientationNotifications");
+    log_once!("TODO: beginGeneratingDeviceOrientationNotifications");
 }
 - (())endGeneratingDeviceOrientationNotifications {
-    log!("TODO: endGeneratingDeviceOrientationNotifications");
+    log_once!("TODO: endGeneratingDeviceOrientationNotifications");
+}
+- (bool)isGeneratingDeviceOrientationNotifications {
+    log_once!("TODO: isGeneratingDeviceOrientationNotifications");
+    false
 }
 
 - (id)model {
