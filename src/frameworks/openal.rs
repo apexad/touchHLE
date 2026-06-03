@@ -629,6 +629,31 @@ fn alSourceRewind(env: &mut Environment, source: ALuint) {
     unsafe { context.SourceRewind(source) };
 }
 
+fn alSourcePlayv(env: &mut Environment, nsources: ALsizei, sources: ConstPtr<ALuint>) {
+    let nsources_usize: GuestUSize = nsources.try_into().unwrap();
+    let sources = env.mem.ptr_at(sources, nsources_usize);
+    try_get_context!(env, context);
+    unsafe { context.SourcePlayv(nsources, sources) };
+}
+fn alSourcePausev(env: &mut Environment, nsources: ALsizei, sources: ConstPtr<ALuint>) {
+    let nsources_usize: GuestUSize = nsources.try_into().unwrap();
+    let sources = env.mem.ptr_at(sources, nsources_usize);
+    try_get_context!(env, context);
+    unsafe { context.SourcePausev(nsources, sources) };
+}
+fn alSourceStopv(env: &mut Environment, nsources: ALsizei, sources: ConstPtr<ALuint>) {
+    let nsources_usize: GuestUSize = nsources.try_into().unwrap();
+    let sources = env.mem.ptr_at(sources, nsources_usize);
+    try_get_context!(env, context);
+    unsafe { context.SourceStopv(nsources, sources) };
+}
+fn alSourceRewindv(env: &mut Environment, nsources: ALsizei, sources: ConstPtr<ALuint>) {
+    let nsources_usize: GuestUSize = nsources.try_into().unwrap();
+    let sources = env.mem.ptr_at(sources, nsources_usize);
+    try_get_context!(env, context);
+    unsafe { context.SourceRewindv(nsources, sources) };
+}
+
 fn alSourceQueueBuffers(
     env: &mut Environment,
     source: ALuint,
@@ -834,18 +859,6 @@ fn alGetProcAddress(env: &mut Environment, funcName: ConstPtr<u8>) -> MutVoidPtr
     alcGetProcAddress(env, Ptr::null(), funcName)
 }
 fn alIsEnabled(_env: &mut Environment, _capability: ALenum) -> ALboolean {
-    todo!();
-}
-fn alSourcePlayv(_env: &mut Environment, _nsources: ALsizei, _sources: ConstPtr<ALuint>) {
-    todo!();
-}
-fn alSourcePausev(_env: &mut Environment, _nsources: ALsizei, _sources: ConstPtr<ALuint>) {
-    todo!();
-}
-fn alSourceStopv(_env: &mut Environment, _nsources: ALsizei, _sources: ConstPtr<ALuint>) {
-    todo!();
-}
-fn alSourceRewindv(_env: &mut Environment, _nsources: ALsizei, _sources: ConstPtr<ALuint>) {
     todo!();
 }
 
