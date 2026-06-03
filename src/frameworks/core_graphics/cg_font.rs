@@ -10,10 +10,11 @@ use super::cg_data_provider::CGDataProviderRef;
 use super::{CGFloat, CGPoint, CGRect, CGSize};
 use crate::dyld::{export_c_func, FunctionExports};
 use crate::font::Font;
+use crate::frameworks::core_foundation::cf_data::CFDataRef;
 use crate::frameworks::core_foundation::{CFRelease, CFRetain, CFTypeRef};
 use crate::frameworks::foundation::unichar;
 use crate::mem::{ConstPtr, GuestUSize, MutPtr};
-use crate::objc::{objc_classes, ClassExports, HostObject};
+use crate::objc::{id, msg, msg_class, objc_classes, ClassExports, HostObject};
 use crate::Environment;
 
 // Note: on iOS SDK side this type is defined as a pointer to an opaque struct
@@ -129,6 +130,19 @@ fn CGFontGetItalicAngle(env: &mut Environment, font: CGFontRef) -> CGFloat {
     font.italic_angle().unwrap_or(0.0)
 }
 
+fn CGFontCopyTableForTag(env: &mut Environment, font: CGFontRef, tag: u32) -> CFDataRef {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    let table_data = font.table_data(tag).unwrap();
+
+    let len = table_data.len() as GuestUSize;
+    let guest_bytes = env.mem.alloc(len);
+    env.mem
+        .bytes_at_mut(guest_bytes.cast(), len)
+        .copy_from_slice(table_data);
+    let new: id = msg_class![env; NSData alloc];
+    msg![env; new initWithBytesNoCopy:guest_bytes length:len]
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontCreateWithDataProvider(_)),
     export_c_func!(CGFontRetain(_)),
@@ -141,4 +155,5 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontGetFontBBox(_)),
     export_c_func!(CGFontGetGlyphAdvances(_, _, _, _)),
     export_c_func!(CGFontGetItalicAngle(_)),
+    export_c_func!(CGFontCopyTableForTag(_, _)),
 ];
