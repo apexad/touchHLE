@@ -28,6 +28,7 @@ type CGInterpolationQuality = i32;
 
 type CGTextDrawingMode = i32;
 const kCGTextFill: CGTextDrawingMode = 0;
+const kCGTextFillStroke: CGTextDrawingMode = 2;
 
 pub type CGBlendMode = i32;
 pub const kCGBlendModeNormal: CGBlendMode = 0;
@@ -331,7 +332,7 @@ fn CGContextSetTextDrawingMode(
     _context: CGContextRef,
     mode: CGTextDrawingMode,
 ) {
-    assert_eq!(mode, kCGTextFill); // TODO: support other modes
+    assert!(mode == kCGTextFill || mode == kCGTextFillStroke); // TODO: support other modes
 }
 
 fn CGContextSetTextMatrix(
