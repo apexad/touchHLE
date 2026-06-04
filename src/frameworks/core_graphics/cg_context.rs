@@ -151,6 +151,19 @@ fn CGContextSetGrayFillColor(
         .rgb_fill_color = color;
 }
 
+fn CGContextSetGrayStrokeColor(
+    _env: &mut Environment,
+    context: CGContextRef,
+    gray: CGFloat,
+    alpha: CGFloat,
+) {
+    log!(
+        "TODO: CGContextSetGrayStrokeColor({:?}, {}, {})",
+        context,
+        gray,
+        alpha,
+    );
+}
 fn CGContextSetRGBStrokeColor(
     _env: &mut Environment,
     context: CGContextRef,
@@ -384,6 +397,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextSetFillColorWithColor(_, _)),
     export_c_func!(CGContextSetRGBFillColor(_, _, _, _, _)),
     export_c_func!(CGContextSetGrayFillColor(_, _, _)),
+    export_c_func!(CGContextSetGrayStrokeColor(_, _, _)),
     export_c_func!(CGContextSetRGBStrokeColor(_, _, _, _, _)),
     export_c_func!(CGContextSetShadowWithColor(_, _, _, _)),
     export_c_func!(CGContextFillRect(_, _)),
