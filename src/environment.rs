@@ -1010,6 +1010,7 @@ impl Environment {
         new_thread_id
     }
 
+    #[allow(unused)]
     pub fn get_tl_framework_state(&mut self) -> &mut frameworks::ThreadLocalState {
         &mut self.threads[self.current_thread].framework_state
     }
