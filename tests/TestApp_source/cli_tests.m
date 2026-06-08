@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <fenv.h>
 #include <fnmatch.h>
+#include <glob.h>
 #include <locale.h>
 #include <mach/kern_return.h>
 #include <mach/thread_info.h>
@@ -2146,6 +2147,35 @@ int test_read_directory_as_fd() {
     return -3;
   }
   fclose(dir_stream);
+  return 0;
+}
+
+int test_glob() {
+  glob_t gstruct;
+  char buffer[256];
+  bzero(buffer, 256);
+  strcpy(buffer, path_test_app());
+  strcat(buffer, "/*.plist");
+  int res = glob(buffer, GLOB_NOSORT | GLOB_NOESCAPE, NULL, &gstruct);
+  if (res != 0) {
+    return -1;
+  }
+  char *expected = "Info.plist";
+  char *found = *gstruct.gl_pathv;
+  size_t found_len = strlen(found);
+  size_t expected_len = strlen(expected);
+  if (memcmp(found + (found_len - expected_len), expected, expected_len) != 0) {
+    return -2;
+  }
+  globfree(&gstruct);
+  bzero(buffer, 256);
+  strcpy(buffer, path_test_app());
+  strcat(buffer, "/*.abcdef");
+  res = glob(buffer, GLOB_NOSORT | GLOB_NOESCAPE, NULL, &gstruct);
+  if (res == 0) {
+    return -3;
+  }
+  globfree(&gstruct);
   return 0;
 }
 
@@ -6109,6 +6139,7 @@ struct {
     FUNC_DEF(test_strtol),
     FUNC_DEF(test_dirent),
     FUNC_DEF(test_scandir),
+    FUNC_DEF(test_glob),
     FUNC_DEF(test_fnmatch),
     FUNC_DEF(test_strchr),
     FUNC_DEF(test_swprintf),
