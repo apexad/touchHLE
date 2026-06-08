@@ -384,6 +384,35 @@ pub fn strtoul(
         }
     }
 }
+fn wcstoul(
+    env: &mut Environment,
+    nptr: ConstPtr<wchar_t>,
+    endptr: MutPtr<MutPtr<wchar_t>>,
+    base: i32,
+) -> u32 {
+    // TODO: support other locales
+    let ctype_locale = setlocale(env, LC_CTYPE, Ptr::null());
+    assert_eq!(env.mem.read(ctype_locale), b'C');
+
+    let w_string = env.mem.wcstr_at(nptr);
+    assert!(w_string.is_ascii()); // TODO
+
+    assert!(endptr.is_null()); // TODO
+
+    let c_string = env.mem.alloc_and_write_cstr(w_string.as_bytes());
+    // TODO: use str_to_int_inner_generic() instead
+    let res = strtoul(env, c_string.cast_const(), Ptr::null(), base);
+    env.mem.free(c_string.cast());
+    log_dbg!(
+        "wcstoul({:?} ({:?}), {:?}, {}) => {}",
+        nptr,
+        w_string,
+        endptr,
+        base,
+        res
+    );
+    res
+}
 
 fn strtoull(
     env: &mut Environment,
@@ -555,6 +584,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(bsearch(_, _, _, _, _)),
     export_c_func!(strtof(_, _)),
     export_c_func!(strtoul(_, _, _)),
+    export_c_func!(wcstoul(_, _, _)),
     export_c_func!(strtoull(_, _, _)),
     export_c_func!(strtol(_, _, _)),
     export_c_func!(realpath(_, _)),
