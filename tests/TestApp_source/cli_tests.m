@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
+#include <fnmatch.h>
 #include <locale.h>
 #include <mach/kern_return.h>
 #include <mach/thread_info.h>
@@ -2145,6 +2146,33 @@ int test_read_directory_as_fd() {
     return -3;
   }
   fclose(dir_stream);
+  return 0;
+}
+
+int test_fnmatch() {
+  // Literal match
+  if (fnmatch("hello", "hello", 0) != 0)
+    return -1;
+  if (fnmatch("hello", "world", 0) != FNM_NOMATCH)
+    return -2;
+
+  // `*` wildcard
+  if (fnmatch("*", "anything", 0) != 0)
+    return -3;
+  if (fnmatch("*", "", 0) != 0)
+    return -4;
+  if (fnmatch("hello*", "hello world", 0) != 0)
+    return -5;
+  if (fnmatch("*world", "hello world", 0) != 0)
+    return -6;
+  if (fnmatch("hel*lo", "hello", 0) != 0)
+    return -7;
+  if (fnmatch("hel*lo", "helxxxlo", 0) != 0)
+    return -8;
+  if (fnmatch("*.txt", "file.txt", 0) != 0)
+    return -9;
+  if (fnmatch("*.txt", "file.md", 0) != FNM_NOMATCH)
+    return -10;
   return 0;
 }
 
@@ -6081,6 +6109,7 @@ struct {
     FUNC_DEF(test_strtol),
     FUNC_DEF(test_dirent),
     FUNC_DEF(test_scandir),
+    FUNC_DEF(test_fnmatch),
     FUNC_DEF(test_strchr),
     FUNC_DEF(test_swprintf),
     FUNC_DEF(test_realpath),
