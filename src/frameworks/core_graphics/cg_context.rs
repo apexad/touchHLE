@@ -315,6 +315,14 @@ fn CGContextSetAllowsAntialiasing(_env: &mut Environment, context: CGContextRef,
     );
 }
 
+fn CGContextSetShouldSmoothFonts(_env: &mut Environment, context: CGContextRef, should: bool) {
+    log!(
+        "TODO: CGContextSetShouldSmoothFonts({:?}, {})",
+        context,
+        should
+    );
+}
+
 fn CGContextSetFont(env: &mut Environment, context: CGContextRef, font: CGFontRef) {
     CGFontRetain(env, font);
     let old_font = env.objc.borrow_mut::<CGContextHostObject>(context).font;
@@ -444,6 +452,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGContextRestoreGState(_)),
     export_c_func!(CGContextSetInterpolationQuality(_, _)),
     export_c_func!(CGContextSetAllowsAntialiasing(_, _)),
+    export_c_func!(CGContextSetShouldSmoothFonts(_, _)),
     export_c_func!(CGContextSetFont(_, _)),
     export_c_func!(CGContextSetFontSize(_, _)),
     export_c_func!(CGContextSetTextDrawingMode(_, _)),
