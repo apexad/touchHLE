@@ -208,6 +208,10 @@ impl Font {
         self.as_face_ref().table_data(owned_ttf_parser::Tag(tag))
     }
 
+    pub fn number_of_glyphs(&self) -> u16 {
+        self.as_face_ref().number_of_glyphs()
+    }
+
     fn line_height_and_gap(&self, font_size: f32) -> (f32, f32) {
         let v_metrics = self.v_metrics_scaled(font_size);
         (v_metrics.ascent - v_metrics.descent, v_metrics.line_gap)

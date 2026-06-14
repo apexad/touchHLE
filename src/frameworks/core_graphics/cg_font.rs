@@ -143,6 +143,11 @@ fn CGFontCopyTableForTag(env: &mut Environment, font: CGFontRef, tag: u32) -> CF
     msg![env; new initWithBytesNoCopy:guest_bytes length:len]
 }
 
+fn CGFontGetNumberOfGlyphs(env: &mut Environment, font: CGFontRef) -> GuestUSize {
+    let font = &env.objc.borrow::<CGFontHostObject>(font).font;
+    font.number_of_glyphs().into()
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontCreateWithDataProvider(_)),
     export_c_func!(CGFontRetain(_)),
@@ -156,4 +161,5 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(CGFontGetGlyphAdvances(_, _, _, _)),
     export_c_func!(CGFontGetItalicAngle(_)),
     export_c_func!(CGFontCopyTableForTag(_, _)),
+    export_c_func!(CGFontGetNumberOfGlyphs(_)),
 ];
