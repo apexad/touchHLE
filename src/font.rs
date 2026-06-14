@@ -200,6 +200,13 @@ impl Font {
             .glyph_hor_advance(owned_ttf_parser::GlyphId(glyph_id))
     }
 
+    pub fn glyph_bounding_box(&self, glyph_id: u16) -> Option<(i16, i16, i16, i16)> {
+        let rect = self
+            .as_face_ref()
+            .glyph_bounding_box(owned_ttf_parser::GlyphId(glyph_id));
+        rect.map(|rect| (rect.x_min, rect.y_min, rect.x_max, rect.y_max))
+    }
+
     pub fn italic_angle(&self) -> Option<f32> {
         self.as_face_ref().italic_angle()
     }
