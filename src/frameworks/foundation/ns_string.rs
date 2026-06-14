@@ -361,6 +361,16 @@ pub const CLASSES: ClassExports = objc_classes! {
     autorelease(env, new)
 }
 
++ (id)stringWithContentsOfURL:(id)url // NSURL*
+                     encoding:(NSStringEncoding)encoding
+                         error:(MutPtr<id>)error { // NSError**
+    let new: id = msg![env; this alloc];
+    let new: id = msg![env; new initWithContentsOfURL:url
+                                             encoding:encoding
+                                                error:error];
+    autorelease(env, new)
+}
+
 + (id)stringWithFormat:(id)format, // NSString*
                        ...args {
     let res = with_format(env, format, args.start());
@@ -1403,15 +1413,27 @@ pub const CLASSES: ClassExports = objc_classes! {
     let path = to_rust_string(env, path);
     let Ok(bytes) = env.fs.read(GuestPath::new(&path)) else {
         assert!(error.is_null()); // TODO: error handling
+        release(env, this);
         return nil;
     };
 
     // TODO: error handling for encoding
     let host_object = StringHostObject::decode(Cow::Owned(bytes), encoding);
-
     *env.objc.borrow_mut(this) = host_object;
-
     this
+}
+
+- (id)initWithContentsOfURL:(id)url // NSURL*
+                    encoding:(NSStringEncoding)encoding
+                       error:(MutPtr<id>)error { // NSError**
+    let data: id = msg_class![env; NSData dataWithContentsOfURL:url];
+    if data == nil {
+        assert!(error.is_null()); // TODO: error handling
+        release(env, this);
+        return nil;
+    }
+    // TODO: error handling for encoding
+    msg![env; this initWithData:data encoding:encoding]
 }
 
 - (bool)isAbsolutePath {
