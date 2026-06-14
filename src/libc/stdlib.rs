@@ -199,6 +199,12 @@ fn rand(env: &mut Environment) -> i32 {
     env.libc_state.stdlib.rand = prng(env.libc_state.stdlib.rand);
     (env.libc_state.stdlib.rand as i32) & RAND_MAX
 }
+fn rand_r(env: &mut Environment, seed_ptr: MutPtr<u32>) -> i32 {
+    let mut seed = env.mem.read(seed_ptr);
+    seed = prng(seed);
+    env.mem.write(seed_ptr, seed);
+    (seed as i32) & RAND_MAX
+}
 
 // BSD's "better" random number generator, with an implementation that is not
 // actually better.
@@ -573,6 +579,7 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(strtod(_, _)),
     export_c_func!(srand(_)),
     export_c_func!(rand()),
+    export_c_func!(rand_r(_)),
     export_c_func!(srandom(_)),
     export_c_func!(random()),
     export_c_func!(arc4random()),
