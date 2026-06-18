@@ -399,10 +399,8 @@ fn _touchHLE_AVAudioPlayerOutputBufferHelper(
         "_touchHLE_AVAudioPlayerOutputBufferHelper on object of class: {}",
         env.objc.get_class_name(class)
     );
-    assert_eq!(
-        class,
-        env.objc.get_known_class("AVAudioPlayer", &mut env.mem)
-    );
+    let audio_player_class = env.objc.get_known_class("AVAudioPlayer", &mut env.mem);
+    assert!(env.objc.class_is_subclass_of(class, audio_player_class));
 
     let &AVAudioPlayerHostObject {
         audio_file_id,
