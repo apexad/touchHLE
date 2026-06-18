@@ -203,6 +203,17 @@ SEL NSSelectorFromString(NSString *);
                     userInfo:(NSDictionary *)userInfo;
 @end
 
+@interface NSConditionLock : NSObject
+- (instancetype)initWithCondition:(NSInteger)condition;
+- (NSInteger)condition;
+- (void)lock;
+- (void)unlock;
+- (BOOL)tryLock;
+- (void)lockWhenCondition:(NSInteger)condition;
+- (BOOL)tryLockWhenCondition:(NSInteger)condition;
+- (void)unlockWithCondition:(NSInteger)condition;
+@end
+
 // Core Graphics
 
 // (See CGAffineTransform.c for where this define comes from.)
