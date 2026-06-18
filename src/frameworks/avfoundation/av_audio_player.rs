@@ -128,7 +128,13 @@ pub const CLASSES: ClassExports = objc_classes! {
             this
         }
         Err(_) => {
-            assert!(out_error.is_null()); // TODO
+            let domain = ns_string::get_static_str(env, NSOSStatusErrorDomain);
+            let error = msg_class![env; NSError alloc];
+            let code = -1; // TODO: set a proper code
+            let error = msg![env; error initWithDomain:domain code:code userInfo:nil];
+            autorelease(env, error);
+            env.mem.write(out_error, error);
+
             release(env, this);
             nil
         }
