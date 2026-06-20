@@ -977,6 +977,25 @@ impl ObjC {
             None
         }
     }
+
+    pub fn is_unimplemented_class(&self, class: Class) -> bool {
+        if class == nil {
+            return false;
+        }
+        let host_object = self.get_host_object(class).unwrap();
+        matches!(
+            host_object.as_any().downcast_ref(),
+            Some(UnimplementedClass { .. })
+        )
+    }
+
+    pub fn is_fake_class(&self, class: Class) -> bool {
+        if class == nil {
+            return false;
+        }
+        let host_object = self.get_host_object(class).unwrap();
+        matches!(host_object.as_any().downcast_ref(), Some(FakeClass { .. }))
+    }
 }
 
 pub(super) fn objc_getClass(env: &mut Environment, name: ConstPtr<u8>) -> id {
