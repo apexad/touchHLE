@@ -490,10 +490,9 @@ impl Environment {
                     // TODO: `+load` methods from our image should take priority
                     // over frameworks ones.
                     // TODO: a category `+load` method should be called after
-                    // the class’s own +load method.
-                    // TODO: `+initialized` would be send as well (as `+load`
-                    // is the first message to the class), this may create some
-                    // issues.
+                    // the class's own +load method.
+                    // Note: `+load` is sent without triggering `+initialize`,
+                    // matching the runtime's guarantee that `+load` runs first.
                     let mut to_be_loaded = Vec::new();
                     let mut processed = HashSet::new();
                     let load_sel: objc::SEL = env
@@ -531,7 +530,7 @@ impl Environment {
                         }
                     }
                     for &class in &to_be_loaded {
-                        () = objc::msg![env; class load];
+                        () = objc::msg_send_no_initialize(env, (class, load_sel));
                     }
 
                     // Static initializers for libraries must be run before
