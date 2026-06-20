@@ -22,7 +22,7 @@ use crate::{
     window,
 };
 use std::cell::Cell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::TcpListener;
 use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime};
@@ -485,6 +485,55 @@ impl Environment {
                     // will try to poke the top of the stack, so we'll give
                     // it some room.
                     env.cpu.regs_mut()[Cpu::SP] = 0xFFFFF000;
+
+                    // Call `+load` method on classes where it's defined.
+                    // TODO: `+load` methods from our image should take priority
+                    // over frameworks ones.
+                    // TODO: a category `+load` method should be called after
+                    // the class’s own +load method.
+                    // TODO: `+initialized` would be send as well (as `+load`
+                    // is the first message to the class), this may create some
+                    // issues.
+                    let mut to_be_loaded = Vec::new();
+                    let mut processed = HashSet::new();
+                    let load_sel: objc::SEL = env
+                        .objc
+                        .register_host_selector("load".to_string(), &mut env.mem);
+                    for (class_name, &class) in env.objc.all_classes() {
+                        if processed.contains(&class) {
+                            continue;
+                        }
+                        if env.objc.is_unimplemented_class(class) || env.objc.is_fake_class(class) {
+                            continue;
+                        }
+                        if env
+                            .objc
+                            .object_has_uninherited_method(&env.mem, class, load_sel)
+                        {
+                            log_dbg!("Calling +load on inheritance chain of {} class", class_name);
+                            let mut inherited = Vec::new();
+                            let mut curr_class = class;
+                            while curr_class != objc::nil
+                                && !env.objc.is_unimplemented_class(curr_class)
+                                && !env.objc.is_fake_class(curr_class)
+                            {
+                                if !processed.contains(&curr_class)
+                                    && env.objc.object_has_uninherited_method(
+                                        &env.mem, curr_class, load_sel,
+                                    )
+                                {
+                                    inherited.push(curr_class);
+                                    processed.insert(curr_class);
+                                }
+                                curr_class = env.objc.get_superclass(curr_class);
+                            }
+                            to_be_loaded.extend(inherited.into_iter().rev());
+                        }
+                    }
+                    for &class in &to_be_loaded {
+                        () = objc::msg![env; class load];
+                    }
+
                     // Static initializers for libraries must be run before
                     // the initializer in the app binary.
                     for bin_idx in env.get_sorted_bin_indices().unwrap() {
