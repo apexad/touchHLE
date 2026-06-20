@@ -540,6 +540,19 @@ pub const CLASSES: ClassExports = objc_classes! {
     NSRange { location: NSNotFound as NSUInteger, length: 0 }
 }
 
+- (NSRange)rangeOfCharacterFromSet:(id)set { // NSCharacterSet *
+    let length: NSUInteger = msg![env; this length];
+    let mut idx: NSUInteger = 0;
+    while idx < length {
+        let c: u16 = msg![env; this characterAtIndex:idx];
+        if msg![env; set characterIsMember:c] {
+            return NSRange { location: idx, length: 1 };
+        }
+        idx += 1;
+    }
+    NSRange { location: NSNotFound as NSUInteger, length: 0 }
+}
+
 - (id)description {
     this
 }
