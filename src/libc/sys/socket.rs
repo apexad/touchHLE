@@ -282,7 +282,10 @@ fn bind(
     // TODO: handle errno properly
     set_errno(env, 0);
 
-    let socket_host_object = State::get(env).sockets.get(&socket).unwrap();
+    let Some(socket_host_object) = State::get(env).sockets.get(&socket) else {
+        set_errno(env, EBADF);
+        return -1;
+    };
     let type_ = socket_host_object.type_;
     assert!(type_ == SOCK_STREAM || type_ == SOCK_DGRAM);
 
@@ -347,7 +350,11 @@ fn listen(env: &mut Environment, socket: i32, backlog: i32) -> i32 {
     // TODO: handle errno properly
     set_errno(env, 0);
 
-    let type_ = State::get(env).sockets.get(&socket).unwrap().type_;
+    let Some(socket_host_object) = State::get(env).sockets.get(&socket) else {
+        set_errno(env, EBADF);
+        return -1;
+    };
+    let type_ = socket_host_object.type_;
     assert!(type_ == SOCK_STREAM);
 
     log!(
@@ -367,7 +374,11 @@ fn connect(
     // TODO: handle errno properly
     set_errno(env, 0);
 
-    let type_ = State::get(env).sockets.get(&socket).unwrap().type_;
+    let Some(socket_host_object) = State::get(env).sockets.get(&socket) else {
+        set_errno(env, EBADF);
+        return -1;
+    };
+    let type_ = socket_host_object.type_;
     assert!(type_ == SOCK_STREAM);
 
     assert_eq!(address_len, guest_size_of::<sockaddr>());
