@@ -279,8 +279,16 @@ pub fn with_format(env: &mut Environment, format: id, args: VaList) -> String {
         },
         args,
     );
-    // TODO: what if it's not valid UTF-8?
-    String::from_utf8(res).unwrap()
+    match String::from_utf8_lossy(&res) {
+        Cow::Borrowed(str) => str.to_owned(),
+        Cow::Owned(string) => {
+            // TODO: Support UTF-16 printf directly
+            log!(
+                "Warning: invalid UTF-8 sequence replaced with U+FFFD in UTF-16 string formatting"
+            );
+            string
+        }
+    }
 }
 
 pub fn from_rust_ordering(ordering: std::cmp::Ordering) -> NSComparisonResult {
